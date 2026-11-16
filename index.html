@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TRACK DUEL 5.0 — 3D Workshop & Weapons</title>
+<title>TRACK DUEL 5.1 — Improved Networking</title>
 <style>
 :root{color-scheme:dark;--accent:#56f2cf;--pink:#ff6985;--dark:#080d18;--dim:#9aacbf}
 *{box-sizing:border-box}html,body{height:100%;margin:0;overflow:hidden;background:var(--dark);font-family:Inter,system-ui,-apple-system,Segoe UI,Arial,sans-serif;color:#f4faff;user-select:none}
@@ -115,7 +115,7 @@ button,input{font:inherit}button{cursor:pointer}canvas{display:block}#game{posit
   </section>
 </div>
 <div id="overlay"><div class="shell">
-  <div class="brand">MULTIPLAYER AIM TRAINER · V5 / SCOPE & WORKSHOP</div>
+  <div class="brand">MULTIPLAYER AIM TRAINER · V5.1 / NETWORK</div>
   <h1 class="title">TRACK<span>.</span>DUEL</h1>
   <p class="sub">Создавай карту в интерактивном 3D-редакторе, испытывай джамп-пады и новые оружия: трекер, тапалку и авик. Играй против бота или друга в 1 на 1 — хост поделится своей картой автоматически.</p>
   <div id="mainActions" class="actions">
@@ -128,12 +128,18 @@ button,input{font:inherit}button{cursor:pointer}canvas{display:block}#game{posit
       <div class="lobbyWeaponChoices"><label><input type="checkbox" data-lobby-gun="track" checked> Трекер</label><label><input type="checkbox" data-lobby-gun="tap" checked> Тапалка</label><label><input type="checkbox" data-lobby-gun="sniper" checked> Авик</label></div>
       <div id="lobbyNotice" class="lobbyNotice"></div>
     </div>
+    <div class="lobbySettings" id="netSettings"><h3>СЕТЕВОЕ ПОДКЛЮЧЕНИЕ</h3>
+      <label class="lobbyRow">Режим <select id="netMode"><option value="p2p">PeerJS / P2P (экспериментально)</option><option value="relay">Через сервер (WebSocket)</option></select></label>
+      <label class="lobbyRow" id="relaySettings" style="display:none;flex-direction:column;align-items:stretch;gap:8px">Адрес сервера
+      <input id="relayUrl" placeholder="https://track-duel-relay.onrender.com" autocomplete="off" style="width:100%;padding:10px;background:#0a1e30;color:white;border:1px solid #50718b;border-radius:8px"></label>
+      <div class="mini" id="netInfo">P2P может не работать из-за блокировок/NAT. Серверный режим требует отдельного WebSocket-сервера.</div>
+    </div>
     <button class="btn primary" id="host">СОЗДАТЬ КОМНАТУ ДЛЯ ДРУГА</button>
     <div class="join"><input id="codeInput" maxlength="6" placeholder="КОД КОМНАТЫ" autocomplete="off" spellcheck="false"><button class="btn" id="join">ВОЙТИ</button></div>
     <button class="btn" id="bot">ИГРАТЬ С БОТОМ</button>
     <button class="btn" id="openEditor" style="border-color:#367e75;color:#8ff9df">✦ СОЗДАТЬ / ИЗМЕНИТЬ КАРТУ</button>
   </div>
-  <div id="hostWait" class="hide"><div class="room"><div><div class="mini">КОД КОМНАТЫ</div><div class="code" id="roomCode">······</div></div><button class="copy" id="copy">КОПИРОВАТЬ</button></div><p class="mini">Откройте оба версию 4.0. Карта создателя комнаты передаётся другу автоматически. Интернет нужен для Three.js и PeerJS.</p><button class="btn" id="cancel">ОТМЕНИТЬ</button></div>
+  <div id="hostWait" class="hide"><div class="room"><div><div class="mini">КОД КОМНАТЫ</div><div class="code" id="roomCode">······</div></div><button class="copy" id="copy">КОПИРОВАТЬ</button></div><p class="mini">Откройте оба одинаковую версию. Карта передаётся автоматически. Для серверного режима используй ссылку-приглашение.</p><button class="btn" id="copyInvite">СКОПИРОВАТЬ ССЫЛКУ ДРУГУ</button><button class="btn" id="cancel">ОТМЕНИТЬ</button></div>
   <div class="status" id="status"></div>
   <div class="divider"></div>
   <div class="help"><span><b>1/2/3</b> трек / тапалка / авик</span><span><b>ПКМ</b> зум</span><span><b>M</b> звук</span><span><b>WASD</b> движение</span><span><b>ЛКМ</b> стрельба</span><span><b>SPACE</b> прыжок</span><span><b>ГОЛУБЫЕ ПЛАТФОРМЫ</b> джамп-пады</span><span><b>V</b> настройки</span></div>
@@ -289,7 +295,7 @@ resetObjectId();
 const spawn = () => activeMap.spawns.slice(0,2).map((v,i)=>({x:v.x,y:0,z:v.z,yaw:i===0?-Math.PI/2:Math.PI/2,pitch:0,vy:0,fire:false,weapon:'track',padCooldown:0,kickX:0,kickZ:0,kickCooldown:0,spaceHeld:false}));
 let p=spawn(),hp=[100,100],me=0,op=1,round=1,myScore=0,oppScore=0;
 let role='none',bot=false,started=false,ended=false,locked=false,settingsOpen=false;
-let peer=null,conn=null,myRematch=false,otherRematch=false;
+let peer=null,conn=null,relayWS=null,netMode='p2p',netHost=false,netTimer=null,netEpoch=0,myRematch=false,otherRematch=false;
 let mouseDown=false, keys=Object.create(null), last=performance.now(), sendAcc=0, syncAcc=0;
 let roundLock=0,transition=0,lastHitFx=0,lastHp=100, padFxUntil=0;
 const WEAPONS={
@@ -495,8 +501,112 @@ let bob=0,visualRecoil=0;
 
 function safeSend(o){if(conn?.open)try{conn.send(o)}catch{}}
 function alertMsg(s){status.textContent=s}
-function roomId(){const letters='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';return Array.from({length:6},()=>letters[(Math.random()*letters.length)|0]).join('')}
-function cleanup(){try{conn?.close()}catch{}try{peer?.destroy()}catch{}conn=peer=null}
+function roomId(){const a='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',v=new Uint32Array(6);crypto.getRandomValues(v);return [...v].map(n=>a[n%a.length]).join('')}
+function cleanup(){
+ netEpoch++;clearTimeout(netTimer);
+ const c=conn,p=peer,w=relayWS;conn=peer=relayWS=null;
+ try{c?.close()}catch{}try{p?.destroy()}catch{}try{w?.close()}catch{}
+}
+function netError(s){cleanup();if(!started){$('mainActions').classList.remove('hide');$('hostWait').classList.add('hide')}alertMsg(s)}
+function timeoutNet(epoch,ms,message){
+ clearTimeout(netTimer);netTimer=setTimeout(()=>{if(netEpoch===epoch&&!started)netError(message)},ms)
+}
+function relayAddress(){
+ let value=$('relayUrl').value.trim();if(!value)throw Error('Сначала нужен адрес сервера из Render.');
+ if(!/^https?:\/\//i.test(value)&&!/^wss?:\/\//i.test(value))value='https://'+value;
+ const u=new URL(value);if(u.protocol==='https:')u.protocol='wss:';
+ else if(u.protocol==='http:'&&u.hostname==='localhost')u.protocol='ws:';
+ if(u.protocol!=='wss:'&&!(u.protocol==='ws:'&&u.hostname==='localhost'))throw Error('Нужен HTTPS/WSS адрес.');
+ u.pathname='/ws';u.search='';u.hash='';return u.toString();
+}
+function updateNetUI(){
+ const relay=$('netMode').value==='relay';
+ $('relaySettings').style.display=relay?'flex':'none';
+ $('netInfo').textContent=relay?'Через сервер без прямого P2P. Оба подключаются к одному адресу, его можно передать ссылкой.':'PeerJS может блокироваться провайдером, а WebRTC — зависать из-за NAT. Если не работает, выбери сервер.';
+ try{localStorage.setItem('td-net-mode',$('netMode').value);localStorage.setItem('td-relay-url',$('relayUrl').value.trim())}catch{}
+}
+try{
+ $('netMode').value=localStorage.getItem('td-net-mode')==='relay'?'relay':'p2p';
+ $('relayUrl').value=localStorage.getItem('td-relay-url')||'';
+ const params=new URL(location.href).searchParams;
+ if(params.get('server')){$('relayUrl').value=params.get('server');$('netMode').value='relay'}
+ if(/^[A-HJ-NP-Z2-9]{6}$/i.test(params.get('room')||''))$('codeInput').value=params.get('room').toUpperCase();
+}catch{}
+$('netMode').onchange=updateNetUI;$('relayUrl').onchange=updateNetUI;updateNetUI();
+function relayConn(socket){
+ const ev={open:[],data:[],close:[],error:[]};
+ return {
+  open:false,on(n,fn){ev[n]?.push(fn)},
+  emit(n,v){for(const fn of ev[n]||[])try{fn(v)}catch(e){console.warn(e)}},
+  send(d){if(this.open&&socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify({t:'game',data:d}))},
+  close(){this.open=false;socket.close()}
+ };
+}
+function serverConnect(kind,code){
+ let url;try{url=relayAddress()}catch(e){alertMsg(e.message);return}
+ cleanup();netMode='relay';netHost=kind==='host';const id=netEpoch;
+ alertMsg('Подключаемся к игровому серверу… При первом запуске Render это может занять до минуты.');
+ let socket;try{socket=new WebSocket(url)}catch(e){netError('Невозможно открыть WebSocket: '+e.message);return}
+ relayWS=socket;const c=relayConn(socket);conn=c;bindConnection();
+ timeoutNet(id,95000,'Сервер не ответил. Проверь адрес /health или статус Render. Игровое подключение остановлено.');
+ socket.onopen=()=>{
+  if(id!==netEpoch)return;
+  alertMsg(kind==='host'?'Сервер доступен, создаём комнату…':'Сервер доступен, ищем комнату…');
+  socket.send(JSON.stringify(kind==='host'?{t:'create'}:{t:'join',code}));
+ };
+ socket.onmessage=e=>{
+  if(id!==netEpoch)return;
+  let data;try{data=JSON.parse(e.data)}catch{return}
+  if(data.t==='created'){
+   clearTimeout(netTimer);$('mainActions').classList.add('hide');$('hostWait').classList.remove('hide');
+   $('roomCode').textContent=data.code;alertMsg('Комната готова на сервере. Ждём друга…');
+  }else if(data.t==='joined')alertMsg('Комната найдена. Подключаемся…');
+  else if(data.t==='paired'){clearTimeout(netTimer);c.open=true;c.emit('open')}
+  else if(data.t==='game')c.emit('data',data.data);
+  else if(data.t==='peer-left'){c.open=false;c.emit('close')}
+  else if(data.t==='fail')netError('Сервер: '+({'room-not-found':'комната не найдена','room-full':'комната заполнена','invalid-code':'неверный код','room-expired':'комната закрыта','server-busy':'сервер перегружен'}[data.reason]||data.reason));
+ };
+ socket.onerror=()=>{if(id===netEpoch)alertMsg('Ошибка WebSocket. Возможно, адрес сервера недоступен без VPN.')};
+ socket.onclose=e=>{
+  if(id!==netEpoch)return;
+  if(started){c.open=false;c.emit('close')}
+  else netError('Соединение с сервером закрыто ('+e.code+'). Проверь URL и доступность /health.');
+ };
+}
+function peerError(e){
+ const t=e?.type||'unknown';
+ if(t==='peer-unavailable')return 'Комната не найдена. Проверь код комнаты.';
+ if(['network','socket-error','server-error','disconnected'].includes(t))return 'PeerJS недоступен ('+t+'). Возможно, провайдер блокирует его. Попробуй WebSocket-сервер.';
+ if(t==='webrtc')return 'WebRTC не может соединить игроков. Скорее всего, нужен TURN или WebSocket-сервер.';
+ return 'PeerJS: '+t;
+}
+function peerConnect(kind,code){
+ if(!window.Peer){alertMsg('Не загрузилась PeerJS. Проверь интернет или используй WebSocket-режим.');return}
+ cleanup();netMode='p2p';netHost=kind==='host';const id=netEpoch;
+ alertMsg('Соединяемся с PeerJS…');
+ timeoutNet(id,15000,'PeerJS не ответил за 15 секунд. Вероятно, провайдер блокирует сервер комнат. Используй WebSocket.');
+ const options={config:{iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun.cloudflare.com:3478'}]}};
+ const p=kind==='host'?new Peer('trackduel5-'+roomId().toLowerCase(),options):new Peer(undefined,options);
+ peer=p;
+ p.on('open',()=>{
+  if(id!==netEpoch)return;clearTimeout(netTimer);
+  if(kind==='host'){
+   $('mainActions').classList.add('hide');$('hostWait').classList.remove('hide');
+   $('roomCode').textContent=p.id.replace('trackduel5-','').toUpperCase();alertMsg('Комната готова. Ждём друга…');
+  }else{
+   conn=p.connect('trackduel5-'+code.toLowerCase(),{reliable:true});bindConnection();
+   alertMsg('PeerJS доступен. Соединяемся напрямую через WebRTC…');
+   timeoutNet(id,20000,'WebRTC не установился за 20 секунд. Это проблема NAT/WebRTC; для стабильной связи нужен сервер.');
+  }
+ });
+ p.on('connection',c=>{
+  if(id!==netEpoch){c.close();return}
+  if(conn){c.close();return}
+  conn=c;bindConnection();alertMsg('Друг найден. Устанавливаем WebRTC…');
+  timeoutNet(id,20000,'Друг найден, но WebRTC так и не подключился. Попробуй серверный режим.');
+ });
+ p.on('error',e=>{if(id===netEpoch)netError(peerError(e))});
+}
 function hideSettings(){settingsOpen=false;$('settings').classList.remove('open');refreshUnlock()}
 function openSettings(){if(!started||ended)return;settingsOpen=true;mouseDown=false;document.exitPointerLock?.();$('settings').classList.add('open');refreshUnlock()}
 function toggleSettings(){if(settingsOpen){hideSettings();tryLock()}else openSettings()}
@@ -512,7 +622,7 @@ function refreshHud(){
 function begin(which){
  role=which;me=which==='guest'?1:0;op=1-me;bot=which==='bot';started=true;ended=false;enforceAllowedGun();
  overlay.classList.add('hidden');hud.classList.add('on');$('oppName').textContent=bot?'БОТ':'СОПЕРНИК';
- $('mode').textContent=(bot?'TRACK DUEL 5.0 / BOT':'TRACK DUEL 5.0 / ONLINE 1V1')+' · '+activeMap.name.slice(0,22);$('conn').textContent=bot?'LOCAL':'ONLINE';
+ $('mode').textContent=(bot?'TRACK DUEL 5.1 / BOT':'TRACK DUEL 5.1 / ONLINE 1V1')+' · '+activeMap.name.slice(0,22);$('conn').textContent=bot?'LOCAL':'ONLINE';
  $('endControls').style.display='none';$('again').style.display='';hideSettings();
  round=1;myScore=0;oppScore=0;myRematch=otherRematch=false;resetPose();updateWeaponHud();center.textContent='КЛИКНИ ДЛЯ ИГРЫ';refreshUnlock();tryLock();
 }
@@ -522,34 +632,39 @@ function home(){
  loadIntoArena(loadMap());updateLobbyUI();alertMsg('');
 }
 $('host').onclick=()=>{
- if(lobby.mode!=='1v1'||activeMap.spawns.length<2){alertMsg('Для онлайн-игры пока доступен только формат 1v1 с двумя спавнами.');return}
- if(!window.Peer){alertMsg('PeerJS не загрузился. Проверь интернет и обнови страницу.');return}
- cleanup();alertMsg('Подключаемся к серверу комнат…');const code=roomId();
- peer=new Peer('trackduel5-'+code.toLowerCase());
- peer.on('open',()=>{$('mainActions').classList.add('hide');$('hostWait').classList.remove('hide');$('roomCode').textContent=code;alertMsg('Ожидаем друга…')});
- peer.on('connection',c=>{if(conn){c.close();return}conn=c;bindConnection()});
- peer.on('error',e=>{if(e.type==='unavailable-id'){cleanup();$('host').click();return}alertMsg('Ошибка соединения: '+e.type)});
+ if(lobby.mode!=='1v1'||activeMap.spawns.length<2){alertMsg('Пока доступен только 1v1 с двумя спавнами.');return}
+ if($('netMode').value==='relay')serverConnect('host');
+ else peerConnect('host');
 };
 $('join').onclick=()=>{
- const code=$('codeInput').value.trim().toLowerCase();
- if(!/^[abcdefghjklmnpqrstuvwxyz23456789]{6}$/.test(code)){alertMsg('Введи шестизначный код комнаты.');return}
- if(!window.Peer){alertMsg('PeerJS не загрузился. Проверь интернет.');return}
- cleanup();alertMsg('Подключаемся к комнате '+code.toUpperCase()+'…');
- peer=new Peer();peer.on('open',()=>{conn=peer.connect('trackduel5-'+code,{reliable:true});bindConnection()});
- peer.on('error',e=>alertMsg('Не удалось подключиться: '+e.type));
+ const code=$('codeInput').value.trim().toUpperCase();
+ if(!/^[A-HJ-NP-Z2-9]{6}$/.test(code)){alertMsg('Введи шестизначный код комнаты.');return}
+ if($('netMode').value==='relay')serverConnect('guest',code);
+ else peerConnect('guest',code);
 };
 function bindConnection(){
- conn.on('open',()=>{
-   alertMsg('Соединение установлено!');
-   if(peer?.id?.startsWith('trackduel5-')){begin('host');safeSend({t:'start',map:activeMap,lobby})}
-   else alertMsg('Соединение есть. Получаем карту от создателя…');
+ const c=conn;
+ c.on('open',()=>{
+  if(c!==conn)return;
+  clearTimeout(netTimer);
+  if(netHost){begin('host');safeSend({t:'start',map:activeMap,lobby})}
+  else alertMsg('Соединение есть. Получаем карту создателя…');
  });
- conn.on('data',handleData);
- conn.on('close',()=>{if(started){center.textContent='ДРУГ ОТКЛЮЧИЛСЯ';ended=true;document.exitPointerLock?.();$('endControls').style.display='flex';$('again').style.display='none'}else alertMsg('Соединение закрыто')});
- conn.on('error',()=>alertMsg('Ошибка канала связи'));
+ c.on('data',data=>{if(c===conn)handleData(data)});
+ c.on('close',()=>{
+  if(c!==conn)return;
+  if(started){center.textContent='ДРУГ ОТКЛЮЧИЛСЯ';ended=true;document.exitPointerLock?.();$('endControls').style.display='flex';$('again').style.display='none'}
+  else alertMsg('Соединение закрыто');
+ });
+ c.on('error',e=>{if(c===conn)alertMsg('Ошибка игрового канала: '+(e?.message||'неизвестно'))});
 }
 $('bot').onclick=()=>{if(lobby.mode==='1v1')begin('bot');};$('cancel').onclick=home;$('leave').onclick=home;
-$('copy').onclick=()=>navigator.clipboard?.writeText($('roomCode').textContent).then(()=>{$('copy').textContent='СКОПИРОВАНО';setTimeout(()=>$('copy').textContent='КОПИРОВАТЬ',1400)}).catch(()=>{alertMsg('Выдели код и скопируй вручную')});
+$('copy').onclick=()=>navigator.clipboard.writeText($('roomCode').textContent).then(()=>{$('copy').textContent='СКОПИРОВАНО';setTimeout(()=>$('copy').textContent='КОПИРОВАТЬ',1400)}).catch(()=>alertMsg('Выдели код и скопируй вручную'));
+$('copyInvite').onclick=()=>{
+ const u=new URL(location.href);u.search='';u.searchParams.set('room',$('roomCode').textContent);
+ if(netMode==='relay')u.searchParams.set('server',$('relayUrl').value.trim());
+ navigator.clipboard.writeText(u.toString()).then(()=>alertMsg('Ссылка скопирована — другу нужно нажать «Войти».')).catch(()=>alertMsg('Не удалось скопировать ссылку.'));
+};
 $('again').onclick=()=>{
  if(bot){myScore=oppScore=0;round=1;ended=false;$('endControls').style.display='none';resetPose();tryLock()}
  else{myRematch=true;safeSend({t:'rematch'});center.textContent='ОЖИДАЕМ ДРУГА…';if(otherRematch&&role==='host')startRematch()}
