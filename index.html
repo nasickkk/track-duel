@@ -177,7 +177,27 @@ button,input{font:inherit}button{cursor:pointer}canvas{display:block}#game{posit
     </div>
   </footer>
 </div>
-<script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
+<script>
+// Keep the menu informative if a CDN import or browser feature blocks initialization.
+window.trackDuelReady=false;
+window.addEventListener('error', e=>{
+  if(window.trackDuelReady)return;
+  const status=document.getElementById('status');
+  if(status)status.textContent='Ошибка запуска игры: '+(e.message||'не удалось загрузить компонент')+'. Обнови страницу (Ctrl+F5).';
+});
+window.addEventListener('unhandledrejection',e=>{
+  if(window.trackDuelReady)return;
+  const status=document.getElementById('status');
+  if(status)status.textContent='Ошибка запуска: '+(e.reason?.message||'проверь интернет и WebGL')+'.';
+});
+window.addEventListener('DOMContentLoaded',()=>setTimeout(()=>{
+  if(!window.trackDuelReady){
+    const status=document.getElementById('status');
+    if(status&&!status.textContent)status.textContent='Игра не запустилась. Проверь интернет, доступ к CDN и поддержку WebGL, затем обнови страницу (Ctrl+F5).';
+  }
+},7000));
+</script>
+<script async src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 
@@ -309,7 +329,7 @@ const nameCanvas=document.createElement('canvas');nameCanvas.width=256;nameCanva
 const nameCtx=nameCanvas.getContext('2d');nameCtx.fillStyle='#ffffff';nameCtx.font='900 27px Arial';nameCtx.textAlign='center';nameCtx.fillText('TARGET',128,41);
 const nameSprite=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(nameCanvas),depthTest:false,transparent:true}));
 nameSprite.scale.set(2.6,.65,1);nameSprite.position.y=3.04;enemyMesh.add(nameSprite);
-const enemyVisual={x:START_X,z:0,y:0,yaw:Math.PI/2};
+const enemyVisual={x:p[op].x,z:p[op].z,y:p[op].y,yaw:p[op].yaw};
 
 // Short, articulated carbine / SMG instead of the old box-like "sausage".
 const gun=new THREE.Group();camera.add(gun);scene.add(camera);
@@ -764,6 +784,7 @@ document.addEventListener('pointerlockchange',()=>{locked=document.pointerLockEl
 document.addEventListener('visibilitychange',()=>{if(document.hidden){mouseDown=false;for(const k in keys)keys[k]=false}});
 window.addEventListener('blur',()=>{mouseDown=false;for(const k in keys)keys[k]=false});
 window.addEventListener('beforeunload',cleanup);
+window.trackDuelReady=true;
 </script>
 </body>
 </html>
