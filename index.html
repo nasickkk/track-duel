@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TRACK DUEL 5.3 — Radmin LAN Mode</title>
+<title>TRACK DUEL 5.4 — Diagnostics & Workshop</title>
 <style>
 :root{color-scheme:dark;--accent:#56f2cf;--pink:#ff6985;--dark:#080d18;--dim:#9aacbf}
 *{box-sizing:border-box}html,body{height:100%;margin:0;overflow:hidden;background:var(--dark);font-family:Inter,system-ui,-apple-system,Segoe UI,Arial,sans-serif;color:#f4faff;user-select:none}
@@ -35,7 +35,7 @@ button,input{font:inherit}button{cursor:pointer}canvas{display:block}#game{posit
 .scopeHorizontal,.scopeVertical{position:absolute;background:#0a1726b8;left:50%;top:50%;transform:translate(-50%,-50%)}.scopeHorizontal{height:1px;width:100%}.scopeVertical{height:100%;width:1px}.scopeDot{position:absolute;top:50%;left:50%;width:4px;height:4px;border:1px solid #c7ffff;border-radius:50%;transform:translate(-50%,-50%)}
 .scopeTicks{position:absolute;top:55%;left:50%;width:1px;height:17%;background:repeating-linear-gradient(to bottom,#1e2d42 0px,#1e2d42 2px,transparent 2px,transparent 16px)}
 #hud.scoped #cross{display:none}#hud.scoped #weaponHud{opacity:.25}
-.lobbySettings{border:1px solid #355264;border-radius:11px;background:#0b1d2d;padding:13px;display:grid;gap:8px}.lobbySettings h3{margin:0;font-size:11px;letter-spacing:.1em;color:#66e8d0}.lobbySettings select{background:#122c3c;color:#fff;border:1px solid #426074;padding:9px 10px;border-radius:7px;width:100%;font-size:12px}.lobbyRow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between;color:#b8d2dc;font-size:11px}.lobbyRow input[type=checkbox]{accent-color:#58eed0}.lobbyRow input[type=range]{width:110px}.lobbyWeaponChoices{display:flex;gap:10px;flex-wrap:wrap}.lobbyWeaponChoices label{font-size:11px;color:#bdd9e6}.lobbyNotice{font-size:11px;color:#9fb8c8;line-height:1.5}.lobbyNotice.warn{color:#ffd48e}
+.lobbySettings{border:1px solid #355264;border-radius:11px;background:#0b1d2d;padding:13px;display:grid;gap:8px}.lobbySettings h3{margin:0;font-size:11px;letter-spacing:.1em;color:#66e8d0}.lobbySettings select{background:#122c3c;color:#fff;border:1px solid #426074;padding:9px 10px;border-radius:7px;width:100%;font-size:12px}.lobbyRow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between;color:#b8d2dc;font-size:11px}.lobbyRow input[type=checkbox]{accent-color:#58eed0}.lobbyRow input[type=range]{width:110px}.lobbyWeaponChoices{display:flex;gap:10px;flex-wrap:wrap}.lobbyWeaponChoices label{font-size:11px;color:#bdd9e6}.lobbyNotice{font-size:11px;color:#9fb8c8;line-height:1.5}.lobbyNotice.warn{color:#ffd48e}.diagHead{display:flex;gap:8px;justify-content:space-between;align-items:center}.diagPanel{position:absolute;left:24px;top:116px;width:min(400px,calc(100vw - 48px));max-height:42vh;overflow:auto;pointer-events:auto;background:#071322ec;border:1px solid #35546c;border-radius:10px;padding:12px;box-shadow:0 8px 32px #0009;font-size:11px;z-index:8}.diagPanel.hide{display:none!important}.diagEntries{font:11px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere;color:#d9f8f7;max-height:23vh;overflow:auto}.diagPanel button{font-size:10px;padding:6px 9px}.diagHint{color:#85a4b6;font-size:10px;line-height:1.5;margin-bottom:7px}.diagStat{font-size:11px;color:#72e5c7;margin:3px 0 8px}
 .editorHandleLabel{display:inline-block;color:#a4ffe0;font-size:11px}.editorSizes{display:flex;gap:7px;align-items:center;flex-wrap:wrap}.editorSizes input{width:73px!important}
 @media(max-width:620px){.shell{padding:20px}.bars{gap:7px;padding:15px 10px}.health{width:36vw}.barhead{font-size:9px}.score{font-size:23px}#bottom{font-size:10px}#settingsHint{display:none}#conn,#mode{top:66px;font-size:9px}#mode{left:10px}#conn{right:10px}#padTip{top:98px;right:10px}}
 
@@ -93,11 +93,12 @@ button,input{font:inherit}button{cursor:pointer}canvas{display:block}#game{posit
     <div class="score"><span id="myScore">0</span> : <span id="oppScore">0</span><small id="roundLabel">РАУНД 1</small></div>
     <div class="health right"><div class="barhead"><span id="oppName">СОПЕРНИК</span><span id="enemyhp">100 HP</span></div><div class="track"><div class="fill" id="enemyfill"></div></div></div>
   </div>
-  <div id="mode">TRACK DUEL 5.3</div><div id="conn" title="RTT = время туда и обратно"></div>
+  <div id="mode">TRACK DUEL 5.4</div><div id="conn" title="RTT = время туда и обратно"></div>
   <div id="cross"></div>
-  <div id="scopeOverlay" aria-hidden="true"><div class="scopeLens"><div class="scopeHorizontal"></div><div class="scopeVertical"></div><div class="scopeDot"></div><div class="scopeTicks"></div></div></div><div id="centerMessage"></div><div id="dps"></div><div id="padTip"></div><div id="weaponHud"></div><div id="gunToast"></div>
+  <div id="diagnostic" class="diagPanel hide"><div class="diagHead"><strong>ПОПАДАНИЯ · F8</strong><button class="btn" id="copyDiag" type="button">КОПИРОВАТЬ ЛОГ</button><button class="btn" id="closeDiag" type="button">×</button></div><div id="diagStat" class="diagStat">Ожидание выстрелов…</div><div class="diagHint">«Локально» — проверка по видимой модели. «Хост» — результат, рассчитанный браузером хоста, не независимым сервером.</div><div id="diagEntries" class="diagEntries"></div></div>
+   <div id="scopeOverlay" aria-hidden="true"><div class="scopeLens"><div class="scopeHorizontal"></div><div class="scopeVertical"></div><div class="scopeDot"></div><div class="scopeTicks"></div></div></div><div id="centerMessage"></div><div id="dps"></div><div id="padTip"></div><div id="weaponHud"></div><div id="gunToast"></div>
   <div id="shoot">ТРЕКЕР: УДЕРЖИВАЙ ЛКМ</div>
-  <div id="bottom">WASD — движение · SHIFT — бег · SPACE — прыжок · 1–3 — оружие · ПКМ — прицел · V — настройки · ESC — курсор</div>
+  <div id="bottom">WASD — движение · SHIFT — бег · SPACE — прыжок · 1–3 — оружие · ПКМ — прицел · F8 — журнал попаданий · V — настройки</div>
   <div id="settingsHint">V — ОРУЖИЕ / ПРИЦЕЛ</div>
   <div id="endControls"><button class="btn primary" id="again">РЕВАНШ</button><button class="btn" id="leave">В МЕНЮ</button></div>
   <div id="unlock">КЛИКНИ, ЧТОБЫ ВЕРНУТЬСЯ В ИГРУ</div>
@@ -115,7 +116,7 @@ button,input{font:inherit}button{cursor:pointer}canvas{display:block}#game{posit
   </section>
 </div>
 <div id="overlay"><div class="shell">
-  <div class="brand">MULTIPLAYER AIM TRAINER · V5.3 / LAN & PING</div>
+  <div class="brand">MULTIPLAYER AIM TRAINER · V5.4 / HIT DIAGNOSTICS</div>
   <h1 class="title">TRACK<span>.</span>DUEL</h1>
   <p class="sub">Создавай карту в интерактивном 3D-редакторе, испытывай джамп-пады и новые оружия: трекер, тапалку и авик. Играй против бота или друга в 1 на 1 — хост поделится своей картой автоматически.</p>
   <div id="mainActions" class="actions">
@@ -125,6 +126,8 @@ button,input{font:inherit}button{cursor:pointer}canvas{display:block}#game{posit
       <label class="lobbyRow">Отскок от стен (Space в воздухе) <input id="lobbyBounce" type="checkbox"></label>
       <label class="lobbyRow">Сила отскока <input id="lobbyForce" type="range" min="5" max="17" step="1" value="10"><output id="lobbyForceValue">10</output></label>
       <label class="lobbyRow">Джамп-пады <input id="lobbyPads" type="checkbox" checked></label>
+       <label class="lobbyRow" title="Имитирует сетевую задержку своих выстрелов и трекера на клиенте хоста; не меняет настоящий RTT">Задержка стрельбы хоста <input id="lobbyHostDelay" type="range" min="0" max="150" step="5" value="0"><output id="lobbyHostDelayValue">0 мс</output></label>
+       <div class="mini">Экспериментальный handicap для хоста: задерживает применение его попаданий. Настоящий пинг не меняется. Для RTT друга 30 мс начни с 15 мс.</div>
       <div class="lobbyWeaponChoices"><label><input type="checkbox" data-lobby-gun="track" checked> Трекер</label><label><input type="checkbox" data-lobby-gun="tap" checked> Тапалка</label><label><input type="checkbox" data-lobby-gun="sniper" checked> Авик</label></div>
       <div id="lobbyNotice" class="lobbyNotice"></div>
     </div>
@@ -191,7 +194,8 @@ button,input{font:inherit}button{cursor:pointer}canvas{display:block}#game{posit
       <div id="editorObjectProps" class="hide">
         <label class="editorField">X <input type="number" id="propX" step="0.5"></label>
         <label class="editorField">Z <input type="number" id="propZ" step="0.5"></label>
-        <div id="solidProps">
+        <div id="spawnProps" class="hide"><label class="editorField">Высота спавна Y <input type="number" id="propSpawnY" min="0" max="24" step="0.5" value="0"></label><p class="tiny">Y — высота ног над полом. Спавн в воздухе начнёт падать; для платформы ставь Y примерно равным её высоте.</p></div>
+         <div id="solidProps">
           <label class="editorField">Ширина <input type="number" id="propW" min="0.5" max="40" step="0.5"></label>
           <label class="editorField">Длина <input type="number" id="propD" min="0.5" max="40" step="0.5"></label>
           <label class="editorField">Высота <input type="number" id="propH" min="0.3" max="12" step="0.1"></label>
@@ -202,12 +206,12 @@ button,input{font:inherit}button{cursor:pointer}canvas{display:block}#game{posit
       </div>
       <div class="editorLine"></div>
       <h3>Размер арены</h3>
-      <div class="editorSizes"><label class="tiny">Ширина X <input id="arenaWidth" type="number" min="32" max="100" step="2" value="52"></label><label class="tiny">Длина Z <input id="arenaDepth" type="number" min="24" max="90" step="2" value="40"></label></div>
+      <div class="editorSizes"><label class="tiny">Ширина X <input id="arenaWidth" type="number" min="32" max="220" step="2" value="52"></label><label class="tiny">Длина Z <input id="arenaDepth" type="number" min="24" max="180" step="2" value="40"></label></div>
       <p class="tiny">При изменении границы, пол, сетка и камера обновляются автоматически. Объекты за краями перемещаются внутрь.</p>
       <div class="editorLine"></div>
       <h3>Точки появления</h3>
       <div class="edButtons"><button class="btn" id="addSpawn">+ СПАВН</button><button class="btn" id="removeSpawn">− СПАВН</button></div>
-      <p class="tiny">2 спавна — 1v1; 3 — FFA; 4 — 2v2. Сетевые матчи на 3–4 игроков пока готовятся.</p>
+      <p class="tiny">Выдели спавн, чтобы задать высоту Y (0–24) в свойствах или перетащить жёлтый кубик в 3D. 2 спавна — 1v1; 3–4 пока не реализованы.</p>
       <div class="editorLine"></div>
       <h3>Масштабирование объектов в 3D</h3>
       <p class="tiny">Выдели объект и потяни цветной кубик: <span class="editorHandleLabel">красный — ширина X, синий — длина Z, жёлтый — высота Y.</span></p>
@@ -269,12 +273,12 @@ const DEFAULT_MAP={version:1,name:'Классическая арена',spawns:[
 function mapNum(value,def,min,max){const n=Number(value);return Number.isFinite(n)?Math.min(max,Math.max(min,n)):def}
 function normalizeMap(raw){
  if(!raw||typeof raw!=='object'||!Array.isArray(raw.objects))throw Error('Файл не содержит массива objects.');
- const width=mapNum(raw.width,52,32,100),depth=mapNum(raw.depth,40,24,90),hx=width/2,hz=depth/2;
- const norm={version:2,name:typeof raw.name==='string'?raw.name.slice(0,36):'Моя арена',width,depth,spawns:[],objects:[]};
+ const width=mapNum(raw.width,52,32,220),depth=mapNum(raw.depth,40,24,180),hx=width/2,hz=depth/2;
+ const norm={version:3,name:typeof raw.name==='string'?raw.name.slice(0,36):'Моя арена',width,depth,spawns:[],objects:[]};
  const requestedSpawns=Array.isArray(raw.spawns)?Math.min(4,Math.max(2,raw.spawns.length)):2;
  for(let i=0;i<requestedSpawns;i++){
   const s=Array.isArray(raw.spawns)?raw.spawns[i]:null;
-  norm.spawns.push({x:mapNum(s?.x,i===0?-10:i===1?10:0,-hx+2,hx-2),z:mapNum(s?.z,i===2?-7:i===3?7:0,-hz+2,hz-2)});
+  norm.spawns.push({x:mapNum(s?.x,i===0?-10:i===1?10:0,-hx+2,hx-2),y:mapNum(s?.y,0,0,24),z:mapNum(s?.z,i===2?-7:i===3?7:0,-hz+2,hz-2)});
  }
  const inObjs=raw.objects.slice(0,120);
  for(let i=0;i<inObjs.length;i++){
@@ -292,7 +296,7 @@ let activeMap=loadMap(),nextObjectId=1;HALF_X=activeMap.width/2;HALF_Z=activeMap
 function allocateId(){return nextObjectId++}
 function resetObjectId(){nextObjectId=Math.max(1,...activeMap.objects.map(o=>o.id+1))}
 resetObjectId();
-const spawn = () => activeMap.spawns.slice(0,2).map((v,i)=>({x:v.x,y:0,z:v.z,yaw:i===0?-Math.PI/2:Math.PI/2,pitch:0,vy:0,fire:false,weapon:'track',padCooldown:0,kickX:0,kickZ:0,kickCooldown:0,spaceHeld:false}));
+const spawn = () => activeMap.spawns.slice(0,2).map((v,i)=>({x:v.x,y:v.y||0,z:v.z,yaw:i===0?-Math.PI/2:Math.PI/2,pitch:0,vy:0,fire:false,weapon:'track',padCooldown:0,kickX:0,kickZ:0,kickCooldown:0,spaceHeld:false}));
 let p=spawn(),hp=[100,100],me=0,op=1,round=1,myScore=0,oppScore=0;
 let role='none',bot=false,started=false,ended=false,locked=false,settingsOpen=false;
 let peer=null,conn=null,relayWS=null,netMode='p2p',netHost=false,netTimer=null,netEpoch=0,myRematch=false,otherRematch=false;
@@ -305,11 +309,11 @@ const WEAPONS={
  sniper:{label:'АВИК',description:'70 ТЕЛО · 100 ГОЛОВА · 1.55 СЕК',damage:70,cooldown:1550}
 };
 let activeWeapon='track', nextFireAt=0,lastTrackSound=0,fireFlashUntil=0,shotTrailUntil=0,aiming=false,soundEnabled=true, soundCtx=null,weaponToastUntil=0,remoteFlashUntil=0,remoteShotWeapon='tap';
-const DEFAULT_LOBBY={mode:'1v1',wallBounce:false,bounceForce:10,jumpPads:true,weapons:{track:true,tap:true,sniper:true}};
+const DEFAULT_LOBBY={mode:'1v1',wallBounce:false,bounceForce:10,jumpPads:true,hostDelayMs:0,weapons:{track:true,tap:true,sniper:true}};
 function normalizeLobby(raw){const c=raw&&typeof raw==='object'?raw:{};
  const weapons={track:c.weapons?.track!==false,tap:c.weapons?.tap!==false,sniper:c.weapons?.sniper!==false};
  if(!Object.values(weapons).some(Boolean))weapons.track=true;
- return {mode:['1v1','ffa3','2v2'].includes(c.mode)?c.mode:'1v1',wallBounce:c.wallBounce===true,bounceForce:mapNum(c.bounceForce,10,5,17),jumpPads:c.jumpPads!==false,weapons};
+ return {mode:['1v1','ffa3','2v2'].includes(c.mode)?c.mode:'1v1',wallBounce:c.wallBounce===true,bounceForce:mapNum(c.bounceForce,10,5,17),jumpPads:c.jumpPads!==false,hostDelayMs:Math.round(mapNum(c.hostDelayMs,0,0,150)/5)*5,weapons};
 }
 let lobby=normalizeLobby(DEFAULT_LOBBY);
 try{const stored=localStorage.getItem('trackduel-lobby-v5');if(stored)lobby=normalizeLobby(JSON.parse(stored))}catch{}
@@ -318,7 +322,7 @@ function firstAllowedGun(){return ['track','tap','sniper'].find(w=>lobby.weapons
 function enforceAllowedGun(){if(!lobby.weapons[activeWeapon])selectWeapon(firstAllowedGun())}
 function updateLobbyUI(){
  $('lobbyMode').value=lobby.mode;$('lobbyBounce').checked=lobby.wallBounce;$('lobbyForce').value=lobby.bounceForce;
- $('lobbyForceValue').textContent=lobby.bounceForce;$('lobbyForce').disabled=!lobby.wallBounce;$('lobbyPads').checked=lobby.jumpPads;
+ $('lobbyForceValue').textContent=lobby.bounceForce;$('lobbyForce').disabled=!lobby.wallBounce;$('lobbyPads').checked=lobby.jumpPads;$('lobbyHostDelay').value=lobby.hostDelayMs;$('lobbyHostDelayValue').textContent=lobby.hostDelayMs+' мс';
  document.querySelectorAll('[data-lobby-gun]').forEach(el=>el.checked=lobby.weapons[el.dataset.lobbyGun]);
  const required={ '1v1':2,'ffa3':3,'2v2':4 }[lobby.mode],count=activeMap.spawns.length;
  const issues=[];if(count<required)issues.push('Для выбранного режима нужно '+required+' спавна (на карте '+count+').');
@@ -327,8 +331,8 @@ function updateLobbyUI(){
  $('lobbyNotice').classList.toggle('warn',issues.length>0);
  $('host').disabled=lobby.mode!=='1v1'||count<2;$('bot').disabled=lobby.mode!=='1v1'||count<2;
 }
-for(const id of ['lobbyMode','lobbyBounce','lobbyForce','lobbyPads'])$(id).addEventListener('input',()=>{
- lobby=normalizeLobby({...lobby,mode:$('lobbyMode').value,wallBounce:$('lobbyBounce').checked,bounceForce:Number($('lobbyForce').value),jumpPads:$('lobbyPads').checked});saveLobby();updateLobbyUI();
+for(const id of ['lobbyMode','lobbyBounce','lobbyForce','lobbyPads','lobbyHostDelay'])$(id).addEventListener('input',()=>{
+ lobby=normalizeLobby({...lobby,mode:$('lobbyMode').value,wallBounce:$('lobbyBounce').checked,bounceForce:Number($('lobbyForce').value),jumpPads:$('lobbyPads').checked,hostDelayMs:Number($('lobbyHostDelay').value)});saveLobby();updateLobbyUI();
 });
 document.querySelectorAll('[data-lobby-gun]').forEach(el=>el.addEventListener('change',()=>{
  const w=el.dataset.lobbyGun;lobby.weapons[w]=el.checked;if(!Object.values(lobby.weapons).some(Boolean))lobby.weapons[w]=true;
