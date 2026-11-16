@@ -255,7 +255,7 @@ import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.m
 
 const $ = id => document.getElementById(id);
 const overlay=$('overlay'), hud=$('hud'), center=$('centerMessage'), status=$('status');
-let HALF_X=26, HALF_Z=20; const PLAYER_RADIUS=.46, EYE_HEIGHT=1.70;
+let HALF_X=26, HALF_Z=20; const PLAYER_RADIUS=.46, EYE_HEIGHT=2.22; // Match target head-center height for level aim
 const MAP_TYPES=['wall','cover','low','pillar','platform','pad'];
 const MAP_DIMS={wall:[8,1.2,2.8],cover:[3.6,3,1.6],low:[3.5,2.8,.85],pillar:[2,2,4],platform:[5,5,.7],pad:[3.6,3.6,.2]};
 const DEFAULT_MAP={version:1,name:'Классическая арена',spawns:[{x:-10,z:0},{x:10,z:0}],objects:[
