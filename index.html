@@ -18,7 +18,7 @@ button,input{font:inherit}button{cursor:pointer}canvas{display:block}#game{posit
 .score{font-size:30px;font-weight:950;text-align:center;line-height:1;white-space:nowrap;font-variant-numeric:tabular-nums}.score small{display:block;font-size:10px;letter-spacing:.16em;color:#a1b6c9;margin-top:9px}
 #cross{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:28px;height:28px}#cross:before,#cross:after{content:'';position:absolute;background:#e4faff;box-shadow:0 0 5px #000;opacity:.95}#cross:before{width:2px;height:18px;left:13px;top:5px}#cross:after{width:18px;height:2px;left:5px;top:13px}#cross.hit:before,#cross.hit:after{background:#ffdf64}
 #centerMessage{position:absolute;top:30%;left:0;right:0;text-align:center;font-size:clamp(22px,4vw,38px);font-weight:950;text-shadow:0 3px 14px #000;letter-spacing:.05em}
-#bottom{position:absolute;left:5%;right:5%;bottom:16px;text-align:center;color:#aac0d1;font-size:11px;text-shadow:0 1px 6px #000;line-height:1.5}#shoot{position:absolute;bottom:59px;left:0;right:0;text-align:center;color:var(--accent);font-size:12px;font-weight:900;letter-spacing:.11em}#mode{position:absolute;left:24px;top:78px;font-size:11px;color:#b2c8d9}#conn{position:absolute;right:24px;top:78px;font-size:11px;color:#b2c8d9}#dps{position:absolute;left:50%;top:105px;transform:translateX(-50%);font-size:14px;font-weight:900;color:#ffe98a}
+#bottom{position:absolute;left:5%;right:5%;bottom:16px;text-align:center;color:#aac0d1;font-size:11px;text-shadow:0 1px 6px #000;line-height:1.5}#shoot{position:absolute;bottom:59px;left:0;right:0;text-align:center;color:var(--accent);font-size:12px;font-weight:900;letter-spacing:.11em}#mode{position:absolute;left:24px;top:78px;font-size:11px;color:#b2c8d9}#conn{position:absolute;right:24px;top:78px;font-size:11px;color:#b2c8d9}#dps{position:absolute;left:50%;top:105px;transform:translateX(-50%);font-size:14px;font-weight:900;color:#ffe98a}#confirmedHit{position:absolute;left:50%;top:calc(50% + 31px);transform:translateX(-50%);font-size:13px;font-weight:900;letter-spacing:.09em;color:#84ffe1;text-shadow:0 1px 8px #000}
 #endControls{position:absolute;bottom:115px;left:0;right:0;display:none;justify-content:center;gap:12px;pointer-events:auto}
 #unlock{display:none;position:absolute;inset:0;place-items:center;pointer-events:auto;cursor:pointer;background:#07111b9e;font-weight:850;font-size:20px;letter-spacing:.05em}#unlock.on{display:grid}
 #damage{position:fixed;inset:0;pointer-events:none;z-index:5;box-shadow:inset 0 0 130px 30px transparent;transition:box-shadow .14s}#damage.pain{box-shadow:inset 0 0 130px 30px #e72a3e76}
@@ -96,7 +96,7 @@ button,input{font:inherit}button{cursor:pointer}canvas{display:block}#game{posit
   <div id="mode">TRACK DUEL 5.4</div><div id="conn" title="RTT = время туда и обратно"></div>
   <div id="cross"></div>
   <div id="diagnostic" class="diagPanel hide"><div class="diagHead"><strong>ПОПАДАНИЯ · F8</strong><button class="btn" id="copyDiag" type="button">КОПИРОВАТЬ ЛОГ</button><button class="btn" id="closeDiag" type="button">×</button></div><div id="diagStat" class="diagStat">Ожидание выстрелов…</div><div class="diagHint">«Локально» — проверка по видимой модели. «Хост» — результат, рассчитанный браузером хоста, не независимым сервером.</div><div id="diagEntries" class="diagEntries"></div></div>
-   <div id="scopeOverlay" aria-hidden="true"><div class="scopeLens"><div class="scopeHorizontal"></div><div class="scopeVertical"></div><div class="scopeDot"></div><div class="scopeTicks"></div></div></div><div id="centerMessage"></div><div id="dps"></div><div id="padTip"></div><div id="weaponHud"></div><div id="gunToast"></div>
+   <div id="scopeOverlay" aria-hidden="true"><div class="scopeLens"><div class="scopeHorizontal"></div><div class="scopeVertical"></div><div class="scopeDot"></div><div class="scopeTicks"></div></div></div><div id="centerMessage"></div><div id="dps"></div><div id="confirmedHit"></div><div id="padTip"></div><div id="weaponHud"></div><div id="gunToast"></div>
   <div id="shoot">ТРЕКЕР: УДЕРЖИВАЙ ЛКМ</div>
   <div id="bottom">WASD — движение · SHIFT — бег · SPACE — прыжок · 1–3 — оружие · ПКМ — прицел · F8 — журнал попаданий · V — настройки</div>
   <div id="settingsHint">V — ОРУЖИЕ / ПРИЦЕЛ</div>
@@ -312,6 +312,7 @@ let activeWeapon='track', nextFireAt=0,lastTrackSound=0,fireFlashUntil=0,shotTra
 const hostShots=[],hostTrackHistory=[],trackLastConfirm=[0,0];
 let nextShotId=0,lastTrackDiagnostic=0,diagnosticOpen=false;
 const pendingShots=new Map(),hitLog=[],hitTotals={shots:0,verified:0,mismatch:0};
+let hitFlashUntil=0,hitFlashLabel='';
 const DEFAULT_LOBBY={mode:'1v1',wallBounce:false,bounceForce:10,jumpPads:true,hostDelayMs:0,weapons:{track:true,tap:true,sniper:true}};
 function normalizeLobby(raw){const c=raw&&typeof raw==='object'?raw:{};
  const weapons={track:c.weapons?.track!==false,tap:c.weapons?.tap!==false,sniper:c.weapons?.sniper!==false};
@@ -385,7 +386,7 @@ function diagnosticLine(line){
 }
 function resetDiagnostics(){
  hostShots.length=hostTrackHistory.length=0;trackLastConfirm[0]=trackLastConfirm[1]=0;pendingShots.clear();nextShotId=0;lastTrackDiagnostic=0;
- hitLog.length=0;hitTotals.shots=hitTotals.verified=hitTotals.mismatch=0;
+ hitLog.length=0;hitTotals.shots=hitTotals.verified=hitTotals.mismatch=0;hitFlashUntil=0;hitFlashLabel='';
  $('diagEntries').textContent='';$('diagStat').textContent='Ожидание выстрелов…';
 }
 function predictedHit(){
@@ -397,7 +398,7 @@ function formatShotAck(weapon,id,predicted,result,elapsed,delay){
  hitTotals.verified++;
  const mismatch=!!predicted.hit!==actual;
  if(mismatch)hitTotals.mismatch++;
- if(actual)playHitSound(!!result.head);
+ if(actual){playHitSound(!!result.head);hitFlashUntil=performance.now()+380;hitFlashLabel=result.head?'HEADSHOT':'ПОПАДАНИЕ +'+Math.round(result.damage);}
  diagnosticLine(weapon.toUpperCase()+' #'+id+' локально '+hitText(predicted.hit,predicted.head)+' → хост '+(result.accepted?hitText(actual,result.head):'ОТКЛОНИЛ')+
   ' · '+Number(result.damage||0).toFixed(0)+' HP'+(elapsed!==null?' · подтверждение '+Math.round(elapsed)+'мс':'')+(delay?' · handicap '+delay+'мс':'')+(mismatch?' ⚠ РАСХОЖДЕНИЕ':''));
 }
@@ -802,7 +803,7 @@ function handleData(d){
  if(d.t==='track-ack'&&role==='guest'&&started&&d.round===round){
    const pHit=predictedHit(),hit=!!d.hit;
    hitTotals.shots++;hitTotals.verified++;
-   if(hit)playHitSound(!!d.head);
+   if(hit){playHitSound(!!d.head);hitFlashUntil=performance.now()+280;hitFlashLabel='ТРЕК · ХИТ';}
    diagnosticLine('ТРЕК · локально сейчас '+hitText(pHit.hit,pHit.head)+' ~ хост '+hitText(hit,d.head)+' · '+(Number(d.damage)||0).toFixed(1)+' HP / окно');
  }
  if(d.t==='shotfx'&&role==='guest'&&started){remoteShotWeapon=d.weapon==='sniper'?'sniper':'tap';remoteFlashUntil=performance.now()+(remoteShotWeapon==='sniper'?440:200);}
@@ -935,7 +936,7 @@ function resolveDamage(dt){
      if(i===me){
        const local=predictedHit();
        hitTotals.shots++;hitTotals.verified++;
-       if(confirmed)playHitSound(h.head);
+       if(confirmed){playHitSound(h.head);hitFlashUntil=now+280;hitFlashLabel='ТРЕК · ХИТ';}
        diagnosticLine('ТРЕК · локально '+hitText(local.hit,local.head)+' → хост '+hitText(confirmed,h.head)+' · '+damage.toFixed(2)+' HP / шаг'+(delay?' · handicap '+delay+'мс':''));
      }else if(role==='host'){
        safeSend({t:'track-ack',round,hit:confirmed,head:h.head,damage:damage*(SIM_HZ/5)});
@@ -1074,9 +1075,10 @@ function updateVisual(dt,time){
  enemyVisual.yaw+=deltaYaw*factor;
  enemyMesh.position.set(enemyVisual.x,enemyVisual.y,enemyVisual.z);
  enemyMesh.rotation.y=enemyVisual.yaw;enemyMesh.visible=started&&hp[op]>0;
+ const visibleTarget={x:enemyVisual.x,y:enemyVisual.y,z:enemyVisual.z};
  const beamLive=mine.fire||time<shotTrailUntil;
  if(beamLive){
-  const eye=new THREE.Vector3(mine.x,EYE_HEIGHT+mine.y,mine.z),dir=facing(mine),distance=shotDistance(mine,q);
+  const eye=new THREE.Vector3(mine.x,EYE_HEIGHT+mine.y,mine.z),dir=facing(mine),distance=shotDistance(mine,visibleTarget);
   let length=Number.isFinite(distance)?distance:155;
   for(const c of obstacles)length=Math.min(length,rayCoverDistance(eye,dir,c,length));
   const end=eye.clone().addScaledVector(dir,length);
@@ -1100,8 +1102,9 @@ function updateVisual(dt,time){
   remoteBeam.scale.set(sniperTrail?1.5:1,Math.max(.01,diff.length()),sniperTrail?1.5:1);remoteBeam.visible=true;
   remoteBeam.material.opacity=q.fire?.3:sniperTrail?Math.max(0,.52*(remoteFlashUntil-time)/440):Math.max(0,.34*(remoteFlashUntil-time)/200);
  }else remoteBeam.visible=false;
- const hit=mine.fire&&shotDistance(mine,q)!==Infinity&&time>=roundLock;
- $('cross').classList.toggle('hit',hit);$('dps').textContent=hit?'34 DPS':'';
+ const hit=mine.fire&&shotDistance(mine,visibleTarget)!==Infinity&&time>=roundLock;
+ $('confirmedHit').textContent=time<hitFlashUntil?hitFlashLabel:'';
+ $('cross').classList.toggle('hit',hit||time<hitFlashUntil);$('dps').textContent=hit?'34 DPS':'';
  $('damage').classList.toggle('pain',time-lastHitFx<180);
  $('padTip').textContent=time<padFxUntil?(lobby.wallBounce&&p[me].kickCooldown>.1?'WALL KICK × BOOST':'JUMP PAD × BOOST'):'';
  pads.forEach((pad,i)=>{pad.ring.material.opacity=.8+.2*Math.sin(time*.003+i);pad.ring.scale.setScalar(pad.scale*(1+.07*Math.sin(time*.004+i)));});
