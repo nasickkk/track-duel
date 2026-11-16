@@ -65,6 +65,12 @@ test('WebSocket relay: create, join, forward, disconnect',async t=>{
   const payload={t:'pose',x:2,y:0,z:3,yaw:0,weapon:'tap'};
   h.send({t:'game',data:payload});
   assert.deepEqual(await g.next(),{t:'game',data:payload});
+  const hitAck={t:'hit-ack',id:12,round:1,weapon:'sniper',accepted:true,hit:true,head:false,damage:70};
+  h.send({t:'game',data:hitAck});
+  assert.deepEqual(await g.next(),{t:'game',data:hitAck});
+  const trackAck={t:'track-ack',round:1,hit:true,head:false,damage:7.0};
+  h.send({t:'game',data:trackAck});
+  assert.deepEqual(await g.next(),{t:'game',data:trackAck});
   guest.close();
   assert.equal((await h.next()).t,'peer-left');
 });
