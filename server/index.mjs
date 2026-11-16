@@ -1,9 +1,17 @@
 import http from 'node:http';
 import { randomInt } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { isIP } from 'node:net';
 import WebSocket, { WebSocketServer } from 'ws';
 
 const PORT = Number(process.env.PORT || 10000);
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'https://nasickkk.github.io';
+const LAN_MODE = process.env.LAN_MODE === '1';
+const BIND_HOST = process.env.BIND_HOST || '0.0.0.0';
+if (LAN_MODE && (isIP(BIND_HOST)!==4 || ALLOWED_ORIGIN!==`http://${BIND_HOST}:${PORT}`)) {
+  throw Error('LAN mode requires valid BIND_HOST IPv4 and matching ALLOWED_ORIGIN (http://IP:PORT)');
+}
+const LAN_GAME_HTML = LAN_MODE ? readFileSync(new URL('../index.html', import.meta.url)) : null;
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const rooms = new Map();
 const clients = new Set();
@@ -13,7 +21,10 @@ const MAX_MESSAGES_PER_SECOND = 220; // supports up to 64 pose updates + host HP
 const GAME_TYPES = new Set(['start','pose','sync','shot','shotfx','rematch','net-ping','net-pong']);
 
 const server = http.createServer((request, response) => {
-  if (request.url === '/health' || request.url === '/') {
+  if (LAN_MODE && (request.url === '/play' || request.url === '/play/')) {
+    response.writeHead(200, {'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'});
+    response.end(LAN_GAME_HTML);
+  } else if (request.url === '/health' || request.url === '/') {
     response.writeHead(200, {'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
     response.end(JSON.stringify({ok:true,service:'track-duel-relay',rooms:rooms.size,players:clients.size}));
   } else {
@@ -120,4 +131,7 @@ const heartbeat = setInterval(()=>{
   }
 },30000);
 heartbeat.unref();
-server.listen(PORT,'0.0.0.0',()=>console.log('TRACK DUEL relay listening on '+PORT));
+server.listen(PORT,BIND_HOST,()=>{
+  console.log('TRACK DUEL relay listening on '+BIND_HOST+':'+PORT);
+  if(LAN_MODE)console.log('RADMIN LAN GAME: http://'+BIND_HOST+':'+PORT+'/play');
+});
