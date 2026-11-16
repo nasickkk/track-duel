@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TRACK DUEL 5.1 — Improved Networking</title>
+<title>TRACK DUEL 5.2 — Low Latency & Tracers</title>
 <style>
 :root{color-scheme:dark;--accent:#56f2cf;--pink:#ff6985;--dark:#080d18;--dim:#9aacbf}
 *{box-sizing:border-box}html,body{height:100%;margin:0;overflow:hidden;background:var(--dark);font-family:Inter,system-ui,-apple-system,Segoe UI,Arial,sans-serif;color:#f4faff;user-select:none}
@@ -27,7 +27,7 @@ button,input{font:inherit}button{cursor:pointer}canvas{display:block}#game{posit
 #settingsHint{position:absolute;right:24px;bottom:16px;color:#96bdc6;font-size:10px}
 #weaponHud{position:absolute;left:24px;bottom:54px;font-size:12px;color:#d5f7ff;line-height:1.65;letter-spacing:.03em;text-shadow:0 2px 6px #000}
 #weaponHud strong{color:#67f6d8}#weaponHud .small{color:#97b3cb;font-size:10px}
-#gunToast{position:absolute;left:50%;top:64%;transform:translateX(-50%);color:#b5fff3;font-size:12px;font-weight:800;letter-spacing:.07em;text-shadow:0 2px 8px #000}
+#gunToast{position:absolute;left:50%;top:64%;transform:translateX(-50%);color:#b5fff3;font-size:12px;font-weight:800;letter-spacing:.07em;text-shadow:0 2px 8px #000}#conn{max-width:54vw;text-align:right;font-variant-numeric:tabular-nums;text-shadow:0 1px 7px #000;line-height:1.55}
 #padTip{position:absolute;top:122px;right:24px;font-size:11px;color:#67f4f9;font-weight:850}
 /* Real sniper scope overlay: world is only visible through the round lens. */
 #scopeOverlay{display:none;position:absolute;inset:0;overflow:hidden;pointer-events:none;place-items:center;z-index:3}#scopeOverlay.active{display:grid}
@@ -93,7 +93,7 @@ button,input{font:inherit}button{cursor:pointer}canvas{display:block}#game{posit
     <div class="score"><span id="myScore">0</span> : <span id="oppScore">0</span><small id="roundLabel">РАУНД 1</small></div>
     <div class="health right"><div class="barhead"><span id="oppName">СОПЕРНИК</span><span id="enemyhp">100 HP</span></div><div class="track"><div class="fill" id="enemyfill"></div></div></div>
   </div>
-  <div id="mode">TRACK DUEL 5.0</div><div id="conn"></div>
+  <div id="mode">TRACK DUEL 5.2</div><div id="conn" title="RTT = время туда и обратно"></div>
   <div id="cross"></div>
   <div id="scopeOverlay" aria-hidden="true"><div class="scopeLens"><div class="scopeHorizontal"></div><div class="scopeVertical"></div><div class="scopeDot"></div><div class="scopeTicks"></div></div></div><div id="centerMessage"></div><div id="dps"></div><div id="padTip"></div><div id="weaponHud"></div><div id="gunToast"></div>
   <div id="shoot">ТРЕКЕР: УДЕРЖИВАЙ ЛКМ</div>
@@ -115,7 +115,7 @@ button,input{font:inherit}button{cursor:pointer}canvas{display:block}#game{posit
   </section>
 </div>
 <div id="overlay"><div class="shell">
-  <div class="brand">MULTIPLAYER AIM TRAINER · V5.1 / NETWORK</div>
+  <div class="brand">MULTIPLAYER AIM TRAINER · V5.2 / PING & PHYSICS</div>
   <h1 class="title">TRACK<span>.</span>DUEL</h1>
   <p class="sub">Создавай карту в интерактивном 3D-редакторе, испытывай джамп-пады и новые оружия: трекер, тапалку и авик. Играй против бота или друга в 1 на 1 — хост поделится своей картой автоматически.</p>
   <div id="mainActions" class="actions">
@@ -296,7 +296,8 @@ const spawn = () => activeMap.spawns.slice(0,2).map((v,i)=>({x:v.x,y:0,z:v.z,yaw
 let p=spawn(),hp=[100,100],me=0,op=1,round=1,myScore=0,oppScore=0;
 let role='none',bot=false,started=false,ended=false,locked=false,settingsOpen=false;
 let peer=null,conn=null,relayWS=null,netMode='p2p',netHost=false,netTimer=null,netEpoch=0,myRematch=false,otherRematch=false;
-let mouseDown=false, keys=Object.create(null), last=performance.now(), sendAcc=0, syncAcc=0;
+let mouseDown=false, keys=Object.create(null), last=performance.now(), sendAcc=0, syncAcc=0, fixedAcc=0;
+const SIM_HZ=128, POSE_HZ=64, STATUS_HZ=30;
 let roundLock=0,transition=0,lastHitFx=0,lastHp=100, padFxUntil=0;
 const WEAPONS={
  track:{label:'ТРЕКЕР',description:'НЕПРЕРЫВНЫЙ ЛУЧ',dps:34},
@@ -500,10 +501,31 @@ const beamUp=new THREE.Vector3(0,1,0);
 let bob=0,visualRecoil=0;
 
 function safeSend(o){if(conn?.open)try{conn.send(o)}catch{}}
+const quality={nonce:0,peerWait:null,peerAt:0,peerRtt:null,serverWait:null,serverAt:0,serverRtt:null,lastPeer:0,lastServer:0};
+function resetQuality(){quality.peerWait=quality.serverWait=null;quality.peerRtt=quality.serverRtt=null;quality.lastPeer=quality.lastServer=0;}
+function smoothRtt(before,sample){return before===null?sample:before*.72+sample*.28}
+function paintPing(){
+ const c=$('conn');
+ if(!started||bot){c.textContent=bot?'LOCAL · физика 128 Гц':'';return}
+ const peer=quality.peerRtt===null?'…':Math.round(quality.peerRtt)+' мс';
+ const serv=quality.serverRtt===null?'…':Math.round(quality.serverRtt)+' мс';
+ c.textContent=(netMode==='relay'?'WS · RTT сервер '+serv+' · RTT друг '+peer:'P2P · RTT друг '+peer)+' · сеть до 64 Гц';
+}
+function probeNetwork(now){
+ if(!conn?.open||bot||!started)return;
+ if(now-quality.lastPeer>1800){
+   quality.lastPeer=now;quality.peerWait=++quality.nonce;quality.peerAt=now;
+   safeSend({t:'net-ping',n:quality.peerWait});
+ }
+ if(netMode==='relay'&&relayWS?.readyState===WebSocket.OPEN&&now-quality.lastServer>2200){
+   quality.lastServer=now;quality.serverWait=++quality.nonce;quality.serverAt=now;
+   try{relayWS.send(JSON.stringify({t:'ping',id:quality.serverWait}))}catch{}
+ }
+}
 function alertMsg(s){status.textContent=s}
 function roomId(){const a='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',v=new Uint32Array(6);crypto.getRandomValues(v);return [...v].map(n=>a[n%a.length]).join('')}
 function cleanup(){
- netEpoch++;clearTimeout(netTimer);
+ netEpoch++;clearTimeout(netTimer);resetQuality();
  const c=conn,p=peer,w=relayWS;conn=peer=relayWS=null;
  try{c?.close()}catch{}try{p?.destroy()}catch{}try{w?.close()}catch{}
 }
@@ -557,7 +579,9 @@ function serverConnect(kind,code){
  socket.onmessage=e=>{
   if(id!==netEpoch)return;
   let data;try{data=JSON.parse(e.data)}catch{return}
-  if(data.t==='created'){
+  if(data.t==='pong'){
+   if(data.id===quality.serverWait){quality.serverRtt=smoothRtt(quality.serverRtt,performance.now()-quality.serverAt);quality.serverWait=null;paintPing()}
+  }else if(data.t==='created'){
    clearTimeout(netTimer);$('mainActions').classList.add('hide');$('hostWait').classList.remove('hide');
    $('roomCode').textContent=data.code;alertMsg('Комната готова на сервере. Ждём друга…');
   }else if(data.t==='joined')alertMsg('Комната найдена. Подключаемся…');
@@ -620,9 +644,9 @@ function refreshHud(){
  $('myScore').textContent=myScore;$('oppScore').textContent=oppScore;$('roundLabel').textContent='РАУНД '+round;
 }
 function begin(which){
- role=which;me=which==='guest'?1:0;op=1-me;bot=which==='bot';started=true;ended=false;enforceAllowedGun();
+ role=which;me=which==='guest'?1:0;op=1-me;bot=which==='bot';started=true;ended=false;fixedAcc=sendAcc=syncAcc=0;resetQuality();enforceAllowedGun();
  overlay.classList.add('hidden');hud.classList.add('on');$('oppName').textContent=bot?'БОТ':'СОПЕРНИК';
- $('mode').textContent=(bot?'TRACK DUEL 5.1 / BOT':'TRACK DUEL 5.1 / ONLINE 1V1')+' · '+activeMap.name.slice(0,22);$('conn').textContent=bot?'LOCAL':'ONLINE';
+ $('mode').textContent=(bot?'TRACK DUEL 5.2 / BOT':'TRACK DUEL 5.2 / ONLINE 1V1')+' · '+activeMap.name.slice(0,22);paintPing();
  $('endControls').style.display='none';$('again').style.display='';hideSettings();
  round=1;myScore=0;oppScore=0;myRematch=otherRematch=false;resetPose();updateWeaponHud();center.textContent='КЛИКНИ ДЛЯ ИГРЫ';refreshUnlock();tryLock();
 }
@@ -673,6 +697,14 @@ $('closeSettings').onclick=()=>{hideSettings();tryLock()};
 let lastEnemyPose=performance.now();
 function handleData(d){
  if(!d||typeof d!=='object')return;
+ if(d.t==='net-ping'){
+  if(Number.isSafeInteger(d.n)&&d.n>=0)safeSend({t:'net-pong',n:d.n});
+  return;
+ }
+ if(d.t==='net-pong'){
+  if(d.n===quality.peerWait){quality.peerRtt=smoothRtt(quality.peerRtt,performance.now()-quality.peerAt);quality.peerWait=null;paintPing()}
+  return;
+ }
  if(d.t==='pose'&&started&&!ended){
    const q=p[op];for(const k of ['x','z','y','yaw','pitch'])if(Number.isFinite(d[k]))q[k]=d[k];
    q.fire=!!d.fire&&d.weapon==='track'&&lobby.weapons.track;if(WEAPONS[d.weapon]&&lobby.weapons[d.weapon])q.weapon=d.weapon;lastEnemyPose=performance.now();
@@ -895,8 +927,8 @@ function moveLocal(dt,time){
 function sendPose(dt){
  if(!conn?.open||!started)return;
  sendAcc+=dt;syncAcc+=dt;
- if(sendAcc>=1/30){sendAcc=0;const q=p[me];safeSend({t:'pose',x:q.x,z:q.z,y:q.y,yaw:q.yaw,pitch:q.pitch,fire:q.fire,weapon:activeWeapon});}
- if(role==='host'&&syncAcc>=1/18){syncAcc=0;safeSend({t:'sync',hp,score:[myScore,oppScore],round});}
+ if(sendAcc>=1/POSE_HZ){sendAcc%=1/POSE_HZ;const q=p[me];safeSend({t:'pose',x:q.x,z:q.z,y:q.y,yaw:q.yaw,pitch:q.pitch,fire:q.fire,weapon:activeWeapon});}
+ if(role==='host'&&syncAcc>=1/STATUS_HZ){syncAcc%=1/STATUS_HZ;safeSend({t:'sync',hp,score:[myScore,oppScore],round});}
 }
 function updateVisual(dt,time){
  const q=p[op],mine=p[me];
