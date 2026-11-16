@@ -309,6 +309,9 @@ const WEAPONS={
  sniper:{label:'АВИК',description:'70 ТЕЛО · 100 ГОЛОВА · 1.55 СЕК',damage:70,cooldown:1550}
 };
 let activeWeapon='track', nextFireAt=0,lastTrackSound=0,fireFlashUntil=0,shotTrailUntil=0,aiming=false,soundEnabled=true, soundCtx=null,weaponToastUntil=0,remoteFlashUntil=0,remoteShotWeapon='tap';
+const hostShots=[],hostTrackHistory=[],trackLastConfirm=[0,0];
+let nextShotId=0,lastTrackDiagnostic=0,diagnosticOpen=false;
+const pendingShots=new Map(),hitLog=[],hitTotals={shots:0,verified:0,mismatch:0};
 const DEFAULT_LOBBY={mode:'1v1',wallBounce:false,bounceForce:10,jumpPads:true,hostDelayMs:0,weapons:{track:true,tap:true,sniper:true}};
 function normalizeLobby(raw){const c=raw&&typeof raw==='object'?raw:{};
  const weapons={track:c.weapons?.track!==false,tap:c.weapons?.tap!==false,sniper:c.weapons?.sniper!==false};
@@ -358,7 +361,53 @@ function playShotSound(w){if(!soundEnabled)return;
   osc.connect(gain).connect(soundCtx.destination);osc.start(now);osc.stop(now+(w==='sniper'?.19:.09));
  }catch{ /* Blocked WebAudio must never stop combat input. */ }
 }
-
+function playHitSound(head=false){
+ if(!soundEnabled)return;
+ try{
+  const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
+  if(!soundCtx)soundCtx=new AC();
+  if(soundCtx.state==='suspended')soundCtx.resume().catch(()=>{});
+  const now=soundCtx.currentTime,osc=soundCtx.createOscillator(),gain=soundCtx.createGain();
+  osc.type=head?'triangle':'sine';
+  const freq=head?1310:870;osc.frequency.setValueAtTime(freq,now);osc.frequency.exponentialRampToValueAtTime(freq*.62,now+.083);
+  gain.gain.setValueAtTime(.0001,now);gain.gain.exponentialRampToValueAtTime(head?.075:.045,now+.006);
+  gain.gain.exponentialRampToValueAtTime(.0001,now+.10);
+  osc.connect(gain).connect(soundCtx.destination);osc.start(now);osc.stop(now+.105);
+ }catch{}
+}
+function hitText(hit,head=false){return hit?(head?'HEAD':'HIT'):'MISS'}
+function diagnosticLine(line){
+ const stamp=(performance.now()/1000).toFixed(1);
+ hitLog.unshift('['+stamp+'s] '+line);
+ if(hitLog.length>48)hitLog.length=48;
+ $('diagEntries').textContent=hitLog.join('\n');
+ $('diagStat').textContent='Выстрелы '+hitTotals.shots+' · подтверждено '+hitTotals.verified+' · различия '+hitTotals.mismatch+' · RTT друг '+(quality.peerRtt===null?'…':Math.round(quality.peerRtt)+'мс');
+}
+function resetDiagnostics(){
+ hostShots.length=hostTrackHistory.length=0;trackLastConfirm[0]=trackLastConfirm[1]=0;pendingShots.clear();nextShotId=0;lastTrackDiagnostic=0;
+ hitLog.length=0;hitTotals.shots=hitTotals.verified=hitTotals.mismatch=0;
+ $('diagEntries').textContent='';$('diagStat').textContent='Ожидание выстрелов…';
+}
+function predictedHit(){
+ const q=p[me],visible={x:enemyVisual.x,y:enemyVisual.y,z:enemyVisual.z};
+ return shotHit(q,visible);
+}
+function formatShotAck(weapon,id,predicted,result,elapsed,delay){
+ const actual=!!result.accepted&&!!result.hit;
+ hitTotals.verified++;
+ const mismatch=!!predicted.hit!==actual;
+ if(mismatch)hitTotals.mismatch++;
+ if(actual)playHitSound(!!result.head);
+ diagnosticLine(weapon.toUpperCase()+' #'+id+' локально '+hitText(predicted.hit,predicted.head)+' → хост '+(result.accepted?hitText(actual,result.head):'ОТКЛОНИЛ')+
+  ' · '+Number(result.damage||0).toFixed(0)+' HP'+(elapsed!==null?' · подтверждение '+Math.round(elapsed)+'мс':'')+(delay?' · handicap '+delay+'мс':'')+(mismatch?' ⚠ РАСХОЖДЕНИЕ':''));
+}
+function showDiagnostic(open){
+ diagnosticOpen=open;$('diagnostic').classList.toggle('hide',!open);
+ if(open)document.exitPointerLock?.();
+ else tryLock();
+}
+$('closeDiag').onclick=()=>showDiagnostic(false);
+$('copyDiag').onclick=()=>shareText(['TRACK DUEL HIT LOG',...hitLog].join('\n'),'Лог скопирован');
 
 const defaults={size:.83,side:.35,height:-.34,depth:-.56,sens:.21,fov:78,scopeSens:.42,scopeFov:24};
 const settings={...defaults};
@@ -499,8 +548,8 @@ for(const z of [-.7,-.26])part(.17,.08,.05,0,.31,z,gunGlow,sniperGun);
 part(.025,.035,.65,.14,.035,-1.05,gunGlow,sniperGun);
 const muzzleFlash=new THREE.Mesh(new THREE.SphereGeometry(.1,8,6),new THREE.MeshBasicMaterial({color:0xb8fff0,transparent:true,opacity:.65}));muzzleFlash.position.set(0,0,-1.005);gun.add(muzzleFlash);muzzleFlash.visible=false;
 
-const beam=new THREE.Mesh(new THREE.CylinderGeometry(.006,.006,1,5),new THREE.MeshBasicMaterial({color:0xa1fbea,transparent:true,opacity:.14,depthWrite:false,blending:THREE.AdditiveBlending}));scene.add(beam);beam.visible=false;
-const remoteBeam=new THREE.Mesh(new THREE.CylinderGeometry(.005,.005,1,5),new THREE.MeshBasicMaterial({color:0xffbbc9,transparent:true,opacity:.1,depthWrite:false,blending:THREE.AdditiveBlending}));scene.add(remoteBeam);remoteBeam.visible=false;
+const beam=new THREE.Mesh(new THREE.CylinderGeometry(.024,.024,1,7),new THREE.MeshBasicMaterial({color:0xa1fbea,transparent:true,opacity:.45,depthWrite:false,blending:THREE.AdditiveBlending}));scene.add(beam);beam.visible=false;
+const remoteBeam=new THREE.Mesh(new THREE.CylinderGeometry(.02,.02,1,7),new THREE.MeshBasicMaterial({color:0xffbbc9,transparent:true,opacity:.35,depthWrite:false,blending:THREE.AdditiveBlending}));scene.add(remoteBeam);remoteBeam.visible=false;
 const beamUp=new THREE.Vector3(0,1,0);
 let bob=0,visualRecoil=0;
 
@@ -659,7 +708,7 @@ function begin(which){
  overlay.classList.add('hidden');hud.classList.add('on');$('oppName').textContent=bot?'БОТ':'СОПЕРНИК';
  $('mode').textContent=(bot?'TRACK DUEL 5.3 / BOT':'TRACK DUEL 5.3 / ONLINE 1V1')+' · '+activeMap.name.slice(0,22);paintPing();
  $('endControls').style.display='none';$('again').style.display='';hideSettings();
- round=1;myScore=0;oppScore=0;myRematch=otherRematch=false;resetPose();updateWeaponHud();center.textContent='КЛИКНИ ДЛЯ ИГРЫ';refreshUnlock();tryLock();
+ round=1;myScore=0;oppScore=0;myRematch=otherRematch=false;resetDiagnostics();resetPose();updateWeaponHud();center.textContent='КЛИКНИ ДЛЯ ИГРЫ';refreshUnlock();tryLock();
 }
 function home(){
  cleanup();started=false;ended=false;role='none';bot=false;mouseDown=false;hideSettings();document.exitPointerLock?.();
@@ -965,24 +1014,24 @@ function updateVisual(dt,time){
   for(const c of obstacles)length=Math.min(length,rayCoverDistance(eye,dir,c,length));
   const end=eye.clone().addScaledVector(dir,length);
   const sniperTrail=!mine.fire&&activeWeapon==='sniper'&&time<shotTrailUntil;
-  // An eye-centered line looks like a single pixel. Draw the cosmetic tracer from an offset muzzle.
-  const origin=sniperTrail?eye.clone().addScaledVector(dir,.6).add(new THREE.Vector3(Math.cos(mine.yaw)*.24,-.20,-Math.sin(mine.yaw)*.24)):eye;
+  // Every local beam starts off-axis like a visible weapon muzzle rather than an invisible point at the crosshair.
+  const origin=eye.clone().addScaledVector(dir,.6).add(new THREE.Vector3(Math.cos(mine.yaw)*.27,-.22,-Math.sin(mine.yaw)*.27));
   const diff=end.clone().sub(origin);
   beam.position.copy(origin).addScaledVector(diff,.5);beam.quaternion.setFromUnitVectors(beamUp,diff.clone().normalize());
-  beam.scale.set(sniperTrail?3.3:1,Math.max(.01,diff.length()),sniperTrail?3.3:1);beam.visible=true;
-  beam.material.opacity=mine.fire?.115:sniperTrail?Math.max(0,.56*(shotTrailUntil-time)/440):Math.max(0,.2*(shotTrailUntil-time)/200);
+  beam.scale.set(sniperTrail?1.5:1,Math.max(.01,diff.length()),sniperTrail?1.5:1);beam.visible=true;
+  beam.material.opacity=mine.fire?.38:sniperTrail?Math.max(0,.58*(shotTrailUntil-time)/440):Math.max(0,.36*(shotTrailUntil-time)/200);
  }else beam.visible=false;
  if(q.fire||time<remoteFlashUntil){
   const eye=new THREE.Vector3(q.x,EYE_HEIGHT+q.y,q.z),dir=facing(q);
   let length=155;for(const c of obstacles)length=Math.min(length,rayCoverDistance(eye,dir,c,length));
   const end=eye.clone().addScaledVector(dir,length);
   const sniperTrail=!q.fire&&remoteShotWeapon==='sniper'&&time<remoteFlashUntil;
-  const origin=sniperTrail?eye.clone().addScaledVector(dir,.6).add(new THREE.Vector3(Math.cos(q.yaw)*.24,-.20,-Math.sin(q.yaw)*.24)):eye;
+  const origin=eye.clone().addScaledVector(dir,.6).add(new THREE.Vector3(Math.cos(q.yaw)*.27,-.22,-Math.sin(q.yaw)*.27));
   const diff=end.clone().sub(origin);
   remoteBeam.position.copy(origin).addScaledVector(diff,.5);
   remoteBeam.quaternion.setFromUnitVectors(beamUp,diff.clone().normalize());
-  remoteBeam.scale.set(sniperTrail?3.3:1,Math.max(.01,diff.length()),sniperTrail?3.3:1);remoteBeam.visible=true;
-  remoteBeam.material.opacity=q.fire?.08:sniperTrail?Math.max(0,.5*(remoteFlashUntil-time)/440):Math.max(0,.18*(remoteFlashUntil-time)/200);
+  remoteBeam.scale.set(sniperTrail?1.5:1,Math.max(.01,diff.length()),sniperTrail?1.5:1);remoteBeam.visible=true;
+  remoteBeam.material.opacity=q.fire?.3:sniperTrail?Math.max(0,.52*(remoteFlashUntil-time)/440):Math.max(0,.34*(remoteFlashUntil-time)/200);
  }else remoteBeam.visible=false;
  const hit=mine.fire&&shotDistance(mine,q)!==Infinity&&time>=roundLock;
  $('cross').classList.toggle('hit',hit);$('dps').textContent=hit?'34 DPS':'';
@@ -1353,6 +1402,7 @@ document.addEventListener('keydown',e=>{
  if(editorOpen)return;
  if(['Digit1','Digit2','Digit3'].includes(e.code)&&!e.repeat&&started&&!settingsOpen){selectWeapon({Digit1:'track',Digit2:'tap',Digit3:'sniper'}[e.code]);return}
  if(e.code==='KeyM'&&!e.repeat){toggleSound();return}
+ if(e.code==='F8'&&!e.repeat&&started){showDiagnostic(!diagnosticOpen);e.preventDefault();return}
  if(e.code==='KeyV'&&!e.repeat&&started&&!ended){toggleSettings();e.preventDefault();return}
  if(settingsOpen)return;
  keys[e.code]=true;
