@@ -1,10 +1,20 @@
-# TRACK DUEL 5.1
+# TRACK DUEL 5.2
 
 A lightweight browser-based FPS tracking duel and 3D map workshop, built with Three.js and a choice of experimental PeerJS peer-to-peer networking or a separately deployed WebSocket relay server.
 
 **Play (GitHub Pages):** https://nasickkk.github.io/track-duel/
 
 > **Prototype:** Supports 1v1 (two people using a room code) and a local moving bot. No dedicated authoritative multiplayer server, persistent accounts, anti-cheat, match history, or reliable latency compensation yet. **3-player free-for-all and 2v2 are planned, not playable.** GitHub Pages hosts static files only.
+
+## 5.2 — RTT, high-frequency movement and visible sniper tracers
+
+- **Ping / RTT HUD:** shows server round-trip delay and full round-trip to your opponent (in relay mode), or opponent RTT in P2P mode.
+- **128 Hz fixed local physics:** client movement and damage are stepped at a fixed simulation rate; actual frame rate and CPU may limit the number of processed steps.
+- **Position updates up to 64 Hz**, host score/HP sync up to 30 Hz. The existing WebSocket relay remains a packet forwarder and is **not** a 128-tick authoritative game server.
+- **Sniper tracers:** longer-lived and visually offset from the view center so the line is visible, including when scoped.
+- **Windows server launcher:** `server/start-windows.bat` installs dependencies and starts a localhost relay. A public HTTPS/WSS endpoint still requires a real domain and reverse proxy/tunnel.
+- **Hosting guide:** [Windows self-hosting and affordable RU/KZ VPS](docs/SELF_HOSTING_RU.md). Includes real TLS/WSS prerequisites, CG-NAT warning, and VPS deployment.
+- Added client syntax verification in GitHub Actions and RTT echo support in the relay.
 
 ## 5.1 — Connection fix: optional WebSocket relay
 
