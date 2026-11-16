@@ -1,10 +1,21 @@
-# TRACK DUEL 5.3
+# TRACK DUEL 5.4
 
 A lightweight browser-based FPS tracking duel and 3D map workshop, built with Three.js and a choice of experimental PeerJS peer-to-peer networking or a separately deployed WebSocket relay server.
 
 **Play (GitHub Pages):** https://nasickkk.github.io/track-duel/
 
 > **Prototype:** Supports 1v1 (two people using a room code) and a local moving bot. No dedicated authoritative multiplayer server, persistent accounts, anti-cheat, match history, or reliable latency compensation yet. **3-player free-for-all and 2v2 are planned, not playable.** GitHub Pages hosts static files only.
+
+## 5.4 — Host handicap, hit logs, spawn Y and larger maps
+
+- **Host shot handicap:** the room creator can add **0–150 ms** of artificial delay to their own tap/sniper damage and continuous tracker damage, making matches more balanced as a first approximation. The real RTT and player movement are NOT changed. Guest RTT around 30 ms? Try 15 ms handicap and compare logs.
+- **Confirmed hit feedback:** distinct hit sounds, short hit toast and brighter first-person tracker and sniper tracers (not just the opponent's tracer). M toggles all sound.
+- **Shot diagnostics with F8:** log local predicted hit vs host-confirmed hit/miss/rejected, acknowledge latency for discrete shots, and periodic host tracking confirmations. Copy the log for debugging. These are **host-browser decisions**, not reports from an authoritative game server.
+- **3D spawn elevation:** spawn points retain height Y (0–24), configurable in properties and using the yellow gizmo. Player spawns above ground now start in the air and fall to surfaces; old maps remain compatible.
+- **Larger arenas:** sizes up to 220×180, raised object/platform top up to 24. Editor adjusts 3D orbit range and caps 2D canvas resolution for large maps.
+- **Guide:** [Диагностика попаданий, искусственная задержка хоста, вертикальные карты](docs/HIT_DIAGNOSTICS_RU.md).
+- **Radmin LAN:** download a new ZIP and restart `server/start-radmin.bat` on the host to enable new hit-ack messages. The old relay ignores them.
+- **Limits:** no independent authoritative tick server, no proper lag compensation and no proven elimination of desync. 128 Hz refers to client simulation only.
 
 ## 5.3 — Radmin VPN LAN (no Render or Cloudflare)
 
