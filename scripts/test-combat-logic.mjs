@@ -19,7 +19,7 @@ const state={
  hostShots:[],hostTrackHistory:[],trackLastConfirm:[0,0],SIM_HZ:128,lastHitFx:0,
  formatShotAck:(...args)=>state.acks.push(args),acks:[],
  predictedHit:()=>({hit:false,head:false}),hitTotals:{shots:0,verified:0},
- diagnosticLine:()=>{},playHitSound:()=>{},safeSend:()=>{},
+ diagnosticLine:()=>{},playHitSound:()=>{},safeSend:()=>{},hitText:(hit,head)=>hit?(head?'HEAD':'HIT'):'MISS',
  center:{textContent:''},refreshHud:()=>{},
 };
 runInNewContext(source+ '\nglobalThis.__combat={shotHit,acceptDiscreteShot,processHostShots,resolveDamage};',state,{timeout:1000});
