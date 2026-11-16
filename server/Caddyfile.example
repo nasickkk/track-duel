@@ -1,0 +1,10 @@
+# Replace duel.example.com with a real domain pointing to YOUR public IPv4.
+# Forward TCP ports 80 and 443 from your router to the PC running Caddy.
+# Then start the relay with start-windows.bat (localhost:10000).
+# Run Caddy with: caddy run --config Caddyfile
+# In the game choose WebSocket mode and enter: https://duel.example.com
+# Do not publish private keys or passwords to GitHub.
+
+duel.example.com {
+    reverse_proxy 127.0.0.1:10000
+}
