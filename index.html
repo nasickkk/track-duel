@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TRACK DUEL 4.0 — 3D Workshop & Weapons</title>
+<title>TRACK DUEL 5.0 — 3D Workshop & Weapons</title>
 <style>
 :root{color-scheme:dark;--accent:#56f2cf;--pink:#ff6985;--dark:#080d18;--dim:#9aacbf}
 *{box-sizing:border-box}html,body{height:100%;margin:0;overflow:hidden;background:var(--dark);font-family:Inter,system-ui,-apple-system,Segoe UI,Arial,sans-serif;color:#f4faff;user-select:none}
@@ -29,6 +29,14 @@ button,input{font:inherit}button{cursor:pointer}canvas{display:block}#game{posit
 #weaponHud strong{color:#67f6d8}#weaponHud .small{color:#97b3cb;font-size:10px}
 #gunToast{position:absolute;left:50%;top:64%;transform:translateX(-50%);color:#b5fff3;font-size:12px;font-weight:800;letter-spacing:.07em;text-shadow:0 2px 8px #000}
 #padTip{position:absolute;top:122px;right:24px;font-size:11px;color:#67f4f9;font-weight:850}
+/* Real sniper scope overlay: world is only visible through the round lens. */
+#scopeOverlay{display:none;position:absolute;inset:0;overflow:hidden;pointer-events:none;place-items:center;z-index:3}#scopeOverlay.active{display:grid}
+#scopeLens{position:relative;width:min(76vh,72vw);height:min(76vh,72vw);aspect-ratio:1;border-radius:50%;border:5px solid #101722;box-shadow:0 0 0 150vmax #03060beb,inset 0 0 40px 8px #0009,0 0 0 7px #364a57;overflow:hidden}
+.scopeHorizontal,.scopeVertical{position:absolute;background:#0a1726b8;left:50%;top:50%;transform:translate(-50%,-50%)}.scopeHorizontal{height:1px;width:100%}.scopeVertical{height:100%;width:1px}.scopeDot{position:absolute;top:50%;left:50%;width:4px;height:4px;border:1px solid #c7ffff;border-radius:50%;transform:translate(-50%,-50%)}
+.scopeTicks{position:absolute;top:55%;left:50%;width:1px;height:17%;background:repeating-linear-gradient(to bottom,#1e2d42 0px,#1e2d42 2px,transparent 2px,transparent 16px)}
+#hud.scoped #cross{display:none}#hud.scoped #weaponHud{opacity:.25}
+.lobbySettings{border:1px solid #355264;border-radius:11px;background:#0b1d2d;padding:13px;display:grid;gap:8px}.lobbySettings h3{margin:0;font-size:11px;letter-spacing:.1em;color:#66e8d0}.lobbySettings select{background:#122c3c;color:#fff;border:1px solid #426074;padding:9px 10px;border-radius:7px;width:100%;font-size:12px}.lobbyRow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between;color:#b8d2dc;font-size:11px}.lobbyRow input[type=checkbox]{accent-color:#58eed0}.lobbyRow input[type=range]{width:110px}.lobbyWeaponChoices{display:flex;gap:10px;flex-wrap:wrap}.lobbyWeaponChoices label{font-size:11px;color:#bdd9e6}.lobbyNotice{font-size:11px;color:#9fb8c8;line-height:1.5}.lobbyNotice.warn{color:#ffd48e}
+.editorHandleLabel{display:inline-block;color:#a4ffe0;font-size:11px}.editorSizes{display:flex;gap:7px;align-items:center;flex-wrap:wrap}.editorSizes input{width:73px!important}
 @media(max-width:620px){.shell{padding:20px}.bars{gap:7px;padding:15px 10px}.health{width:36vw}.barhead{font-size:9px}.score{font-size:23px}#bottom{font-size:10px}#settingsHint{display:none}#conn,#mode{top:66px;font-size:9px}#mode{left:10px}#conn{right:10px}#padTip{top:98px;right:10px}}
 
 /* Creator mode */
@@ -85,8 +93,9 @@ button,input{font:inherit}button{cursor:pointer}canvas{display:block}#game{posit
     <div class="score"><span id="myScore">0</span> : <span id="oppScore">0</span><small id="roundLabel">РАУНД 1</small></div>
     <div class="health right"><div class="barhead"><span id="oppName">СОПЕРНИК</span><span id="enemyhp">100 HP</span></div><div class="track"><div class="fill" id="enemyfill"></div></div></div>
   </div>
-  <div id="mode">TRACK DUEL 4.0</div><div id="conn"></div>
-  <div id="cross"></div><div id="centerMessage"></div><div id="dps"></div><div id="padTip"></div><div id="weaponHud"></div><div id="gunToast"></div>
+  <div id="mode">TRACK DUEL 5.0</div><div id="conn"></div>
+  <div id="cross"></div>
+  <div id="scopeOverlay" aria-hidden="true"><div class="scopeLens"><div class="scopeHorizontal"></div><div class="scopeVertical"></div><div class="scopeDot"></div><div class="scopeTicks"></div></div></div><div id="centerMessage"></div><div id="dps"></div><div id="padTip"></div><div id="weaponHud"></div><div id="gunToast"></div>
   <div id="shoot">ТРЕКЕР: УДЕРЖИВАЙ ЛКМ</div>
   <div id="bottom">WASD — движение · SHIFT — бег · SPACE — прыжок · 1–3 — оружие · ПКМ — прицел · V — настройки · ESC — курсор</div>
   <div id="settingsHint">V — ОРУЖИЕ / ПРИЦЕЛ</div>
@@ -99,15 +108,26 @@ button,input{font:inherit}button{cursor:pointer}canvas{display:block}#game{posit
     <label class="rangeRow"><span class="rangeHead">Высота <output id="heightValue"></output></span><input type="range" id="heightSetting" min="-0.52" max="-0.17" step="0.01"></label>
     <label class="rangeRow"><span class="rangeHead">Удалённость <output id="depthValue"></output></span><input type="range" id="depthSetting" min="-0.94" max="-0.30" step="0.01"></label>
     <label class="rangeRow"><span class="rangeHead">Чувствительность мыши <output id="sensValue"></output></span><input type="range" id="sensSetting" min="0.08" max="0.40" step="0.01"></label>
+    <label class="rangeRow"><span class="rangeHead">Сенса прицела авика (множитель) <output id="scopeSensValue"></output></span><input type="range" id="scopeSensSetting" min="0.10" max="1.00" step="0.01"></label>
+    <label class="rangeRow"><span class="rangeHead">Зум авика (FOV) <output id="scopeFovValue"></output></span><input type="range" id="scopeFovSetting" min="14" max="45" step="1"></label>
     <label class="rangeRow"><span class="rangeHead">Поле зрения (FOV) <output id="fovValue"></output></span><input type="range" id="fovSetting" min="65" max="105" step="1"></label>
     <button class="btn primary" id="closeSettings">СОХРАНИТЬ И ИГРАТЬ</button>
   </section>
 </div>
 <div id="overlay"><div class="shell">
-  <div class="brand">MULTIPLAYER AIM TRAINER · V4 / 3D WORKSHOP</div>
+  <div class="brand">MULTIPLAYER AIM TRAINER · V5 / SCOPE & WORKSHOP</div>
   <h1 class="title">TRACK<span>.</span>DUEL</h1>
   <p class="sub">Создавай карту в интерактивном 3D-редакторе, испытывай джамп-пады и новые оружия: трекер, тапалку и авик. Играй против бота или друга в 1 на 1 — хост поделится своей картой автоматически.</p>
   <div id="mainActions" class="actions">
+    <div class="lobbySettings" id="lobbySettings">
+      <h3>НАСТРОЙКИ КОМНАТЫ</h3>
+      <label class="lobbyRow">Формат матча <select id="lobbyMode"><option value="1v1">1 на 1 (доступно)</option><option value="ffa3">1 на 1 на 1 (в разработке)</option><option value="2v2">2 на 2 (в разработке)</option></select></label>
+      <label class="lobbyRow">Отскок от стен (Space в воздухе) <input id="lobbyBounce" type="checkbox"></label>
+      <label class="lobbyRow">Сила отскока <input id="lobbyForce" type="range" min="5" max="17" step="1" value="10"><output id="lobbyForceValue">10</output></label>
+      <label class="lobbyRow">Джамп-пады <input id="lobbyPads" type="checkbox" checked></label>
+      <div class="lobbyWeaponChoices"><label><input type="checkbox" data-lobby-gun="track" checked> Трекер</label><label><input type="checkbox" data-lobby-gun="tap" checked> Тапалка</label><label><input type="checkbox" data-lobby-gun="sniper" checked> Авик</label></div>
+      <div id="lobbyNotice" class="lobbyNotice"></div>
+    </div>
     <button class="btn primary" id="host">СОЗДАТЬ КОМНАТУ ДЛЯ ДРУГА</button>
     <div class="join"><input id="codeInput" maxlength="6" placeholder="КОД КОМНАТЫ" autocomplete="off" spellcheck="false"><button class="btn" id="join">ВОЙТИ</button></div>
     <button class="btn" id="bot">ИГРАТЬ С БОТОМ</button>
@@ -121,7 +141,7 @@ button,input{font:inherit}button{cursor:pointer}canvas{display:block}#game{posit
 <!-- Map editor lives in the same HTML as the FPS, so it also works on GitHub Pages. -->
 <div id="mapEditor" class="hide" aria-label="Редактор арен">
   <header class="editorTop">
-    <div><div class="tag">TRACK DUEL / WORKSHOP</div><div class="editorBrand">MAP <span>CREATOR</span> <small class="editorSmallBadge">4.0</small></div></div>
+    <div><div class="tag">TRACK DUEL / WORKSHOP</div><div class="editorBrand">MAP <span>CREATOR</span> <small class="editorSmallBadge">5.0</small></div></div>
     <div class="topActions">
       <input id="mapName" maxlength="36" value="Моя арена" aria-label="Название карты">
       <button class="btn" id="mapSave">СОХРАНИТЬ</button>
@@ -142,6 +162,8 @@ button,input{font:inherit}button{cursor:pointer}canvas{display:block}#game{posit
         <button class="tool" data-tool="pad"><span>◉ Джамп-пад</span><span class="toolKey">7</span></button>
         <button class="tool" data-tool="spawn0"><span>➊ Спавн игрока 1</span><span class="toolKey">8</span></button>
         <button class="tool" data-tool="spawn1"><span>➋ Спавн игрока 2</span><span class="toolKey">9</span></button>
+        <button class="tool hide" data-tool="spawn2"><span>➌ Спавн игрока 3</span><span class="toolKey">0</span></button>
+        <button class="tool hide" data-tool="spawn3"><span>➍ Спавн игрока 4</span><span class="toolKey">0</span></button>
       </div>
       <div class="editorLine"></div>
       <h3>Шаблоны</h3>
@@ -164,18 +186,29 @@ button,input{font:inherit}button{cursor:pointer}canvas{display:block}#game{posit
         <label class="editorField">X <input type="number" id="propX" step="0.5"></label>
         <label class="editorField">Z <input type="number" id="propZ" step="0.5"></label>
         <div id="solidProps">
-          <label class="editorField">Ширина <input type="number" id="propW" min="0.5" max="25" step="0.5"></label>
-          <label class="editorField">Длина <input type="number" id="propD" min="0.5" max="25" step="0.5"></label>
-          <label class="editorField">Высота <input type="number" id="propH" min="0.3" max="8" step="0.1"></label>
+          <label class="editorField">Ширина <input type="number" id="propW" min="0.5" max="40" step="0.5"></label>
+          <label class="editorField">Длина <input type="number" id="propD" min="0.5" max="40" step="0.5"></label>
+          <label class="editorField">Высота <input type="number" id="propH" min="0.3" max="12" step="0.1"></label>
           <label class="editorField">Цвет <input type="color" id="propColor" value="#3b556b"></label>
           <div class="edButtons"><button class="btn" id="rotateObject">↻ ПОВЕРНУТЬ</button><button class="btn" id="copyObject">⧉ КОПИЯ</button></div>
           <button class="btn editorDanger" id="deleteObject" style="width:100%">УДАЛИТЬ ОБЪЕКТ</button>
         </div>
       </div>
       <div class="editorLine"></div>
+      <h3>Размер арены</h3>
+      <div class="editorSizes"><label class="tiny">Ширина X <input id="arenaWidth" type="number" min="32" max="100" step="2" value="52"></label><label class="tiny">Длина Z <input id="arenaDepth" type="number" min="24" max="90" step="2" value="40"></label></div>
+      <p class="tiny">При изменении границы, пол, сетка и камера обновляются автоматически. Объекты за краями перемещаются внутрь.</p>
+      <div class="editorLine"></div>
+      <h3>Точки появления</h3>
+      <div class="edButtons"><button class="btn" id="addSpawn">+ СПАВН</button><button class="btn" id="removeSpawn">− СПАВН</button></div>
+      <p class="tiny">2 спавна — 1v1; 3 — FFA; 4 — 2v2. Сетевые матчи на 3–4 игроков пока готовятся.</p>
+      <div class="editorLine"></div>
+      <h3>Масштабирование объектов в 3D</h3>
+      <p class="tiny">Выдели объект и потяни цветной кубик: <span class="editorHandleLabel">красный — ширина X, синий — длина Z, жёлтый — высота Y.</span></p>
+      <div class="editorLine"></div>
       <h3>Обзор карты</h3>
       <p id="mapStats" class="tiny"></p>
-      <p class="tiny">Размер арены: 52 × 40. Голубые круги — джамп-пады. Зелёная и розовая метки — точки появления игроков. Сначала редактируем высоту объектов; полноценный рельеф пола — следующим этапом.</p>
+      <p class="tiny">Границы арены и число спавнов настраиваются выше. Голубые круги — джамп-пады. Зелёная и розовая метки — точки появления игроков. Сначала редактируем высоту объектов; полноценный рельеф пола — следующим этапом.</p>
       <div class="editorLine"></div>
       <h3>Полезно</h3>
       <p class="tiny">Высокая стена полностью закрывает игрока. Низкие укрытия можно перепрыгнуть. На платформы можно приземляться сверху. Джамп-пады подбрасывают вверх.</p>
@@ -216,7 +249,7 @@ import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.m
 
 const $ = id => document.getElementById(id);
 const overlay=$('overlay'), hud=$('hud'), center=$('centerMessage'), status=$('status');
-const HALF_X=26, HALF_Z=20, PLAYER_RADIUS=.46, EYE_HEIGHT=1.70;
+let HALF_X=26, HALF_Z=20; const PLAYER_RADIUS=.46, EYE_HEIGHT=1.70;
 const MAP_TYPES=['wall','cover','low','pillar','platform','pad'];
 const MAP_DIMS={wall:[8,1.2,2.8],cover:[3.6,3,1.6],low:[3.5,2.8,.85],pillar:[2,2,4],platform:[5,5,.7],pad:[3.6,3.6,.2]};
 const DEFAULT_MAP={version:1,name:'Классическая арена',spawns:[{x:-10,z:0},{x:10,z:0}],objects:[
@@ -230,28 +263,30 @@ const DEFAULT_MAP={version:1,name:'Классическая арена',spawns:[
 function mapNum(value,def,min,max){const n=Number(value);return Number.isFinite(n)?Math.min(max,Math.max(min,n)):def}
 function normalizeMap(raw){
  if(!raw||typeof raw!=='object'||!Array.isArray(raw.objects))throw Error('Файл не содержит массива objects.');
- const norm={version:1,name:typeof raw.name==='string'?raw.name.slice(0,36):'Моя арена',spawns:[],objects:[]};
- for(let i=0;i<2;i++){
+ const width=mapNum(raw.width,52,32,100),depth=mapNum(raw.depth,40,24,90),hx=width/2,hz=depth/2;
+ const norm={version:2,name:typeof raw.name==='string'?raw.name.slice(0,36):'Моя арена',width,depth,spawns:[],objects:[]};
+ const requestedSpawns=Array.isArray(raw.spawns)?Math.min(4,Math.max(2,raw.spawns.length)):2;
+ for(let i=0;i<requestedSpawns;i++){
   const s=Array.isArray(raw.spawns)?raw.spawns[i]:null;
-  norm.spawns.push({x:mapNum(s?.x,i===0?-10:10,-HALF_X+2,HALF_X-2),z:mapNum(s?.z,0,-HALF_Z+2,HALF_Z-2)});
+  norm.spawns.push({x:mapNum(s?.x,i===0?-10:i===1?10:0,-hx+2,hx-2),z:mapNum(s?.z,i===2?-7:i===3?7:0,-hz+2,hz-2)});
  }
  const inObjs=raw.objects.slice(0,120);
  for(let i=0;i<inObjs.length;i++){
   const v=inObjs[i];if(!v||!MAP_TYPES.includes(v.type))continue;
-  const def=MAP_DIMS[v.type],w=mapNum(v.w,def[0],.5,25),d=mapNum(v.d,def[1],.5,25),h=mapNum(v.h,def[2],.3,8);
-  const x=mapNum(v.x,0,-HALF_X+w/2+.6,HALF_X-w/2-.6);
-  const z=mapNum(v.z,0,-HALF_Z+d/2+.6,HALF_Z-d/2-.6);
+  const def=MAP_DIMS[v.type],w=Math.min(width-1.4,mapNum(v.w,def[0],.5,40)),d=Math.min(depth-1.4,mapNum(v.d,def[1],.5,40)),h=mapNum(v.h,def[2],.3,12);
+  const x=mapNum(v.x,0,-hx+w/2+.6,hx-w/2-.6);
+  const z=mapNum(v.z,0,-hz+d/2+.6,hz-d/2-.6);
   const color=typeof v.color==='string'&&/^#[0-9a-f]{6}$/i.test(v.color)?v.color:'#3b556b';
   norm.objects.push({id:i+1,type:v.type,x,z,w,d,h,color});
  }
  return norm;
 }
 function loadMap(){try{const saved=localStorage.getItem('trackduel-map-v3');if(saved)return normalizeMap(JSON.parse(saved))}catch{}return normalizeMap(DEFAULT_MAP)}
-let activeMap=loadMap(),nextObjectId=1;
+let activeMap=loadMap(),nextObjectId=1;HALF_X=activeMap.width/2;HALF_Z=activeMap.depth/2;
 function allocateId(){return nextObjectId++}
 function resetObjectId(){nextObjectId=Math.max(1,...activeMap.objects.map(o=>o.id+1))}
 resetObjectId();
-const spawn = () => activeMap.spawns.map((v,i)=>({x:v.x,y:0,z:v.z,yaw:i===0?-Math.PI/2:Math.PI/2,pitch:0,vy:0,fire:false,weapon:'track',padCooldown:0}));
+const spawn = () => activeMap.spawns.slice(0,2).map((v,i)=>({x:v.x,y:0,z:v.z,yaw:i===0?-Math.PI/2:Math.PI/2,pitch:0,vy:0,fire:false,weapon:'track',padCooldown:0,kickX:0,kickZ:0,kickCooldown:0,spaceHeld:false}));
 let p=spawn(),hp=[100,100],me=0,op=1,round=1,myScore=0,oppScore=0;
 let role='none',bot=false,started=false,ended=false,locked=false,settingsOpen=false;
 let peer=null,conn=null,myRematch=false,otherRematch=false;
@@ -263,11 +298,41 @@ const WEAPONS={
  sniper:{label:'АВИК',description:'70 ТЕЛО · 100 ГОЛОВА · 1.55 СЕК',damage:70,cooldown:1550}
 };
 let activeWeapon='track', nextFireAt=0,lastTrackSound=0,fireFlashUntil=0,shotTrailUntil=0,aiming=false,soundEnabled=true, soundCtx=null,weaponToastUntil=0,remoteFlashUntil=0;
+const DEFAULT_LOBBY={mode:'1v1',wallBounce:false,bounceForce:10,jumpPads:true,weapons:{track:true,tap:true,sniper:true}};
+function normalizeLobby(raw){const c=raw&&typeof raw==='object'?raw:{};
+ const weapons={track:c.weapons?.track!==false,tap:c.weapons?.tap!==false,sniper:c.weapons?.sniper!==false};
+ if(!Object.values(weapons).some(Boolean))weapons.track=true;
+ return {mode:['1v1','ffa3','2v2'].includes(c.mode)?c.mode:'1v1',wallBounce:c.wallBounce===true,bounceForce:mapNum(c.bounceForce,10,5,17),jumpPads:c.jumpPads!==false,weapons};
+}
+let lobby=normalizeLobby(DEFAULT_LOBBY);
+try{const stored=localStorage.getItem('trackduel-lobby-v5');if(stored)lobby=normalizeLobby(JSON.parse(stored))}catch{}
+function saveLobby(){try{localStorage.setItem('trackduel-lobby-v5',JSON.stringify(lobby))}catch{}}
+function firstAllowedGun(){return ['track','tap','sniper'].find(w=>lobby.weapons[w])||'track'}
+function enforceAllowedGun(){if(!lobby.weapons[activeWeapon])selectWeapon(firstAllowedGun())}
+function updateLobbyUI(){
+ $('lobbyMode').value=lobby.mode;$('lobbyBounce').checked=lobby.wallBounce;$('lobbyForce').value=lobby.bounceForce;
+ $('lobbyForceValue').textContent=lobby.bounceForce;$('lobbyForce').disabled=!lobby.wallBounce;$('lobbyPads').checked=lobby.jumpPads;
+ document.querySelectorAll('[data-lobby-gun]').forEach(el=>el.checked=lobby.weapons[el.dataset.lobbyGun]);
+ const required={ '1v1':2,'ffa3':3,'2v2':4 }[lobby.mode],count=activeMap.spawns.length;
+ const issues=[];if(count<required)issues.push('Для выбранного режима нужно '+required+' спавна (на карте '+count+').');
+ if(lobby.mode!=='1v1')issues.push('Сетевой режим на '+required+' игроков пока не реализован. Создание лобби отключено.');
+ $('lobbyNotice').textContent=issues.length?issues.join(' '):'1v1 готов к запуску · '+count+' спавна · правила отправятся гостю.';
+ $('lobbyNotice').classList.toggle('warn',issues.length>0);
+ $('host').disabled=lobby.mode!=='1v1'||count<2;$('bot').disabled=lobby.mode!=='1v1'||count<2;
+}
+for(const id of ['lobbyMode','lobbyBounce','lobbyForce','lobbyPads'])$(id).addEventListener('input',()=>{
+ lobby=normalizeLobby({...lobby,mode:$('lobbyMode').value,wallBounce:$('lobbyBounce').checked,bounceForce:Number($('lobbyForce').value),jumpPads:$('lobbyPads').checked});saveLobby();updateLobbyUI();
+});
+document.querySelectorAll('[data-lobby-gun]').forEach(el=>el.addEventListener('change',()=>{
+ const w=el.dataset.lobbyGun;lobby.weapons[w]=el.checked;if(!Object.values(lobby.weapons).some(Boolean))lobby.weapons[w]=true;
+ lobby=normalizeLobby(lobby);saveLobby();updateLobbyUI();enforceAllowedGun();
+}));
+
 const acceptedShots=[-100000,-100000],nextAcceptedShot=[0,0];
 try{const w=localStorage.getItem('trackduel-weapon-v4');if(WEAPONS[w])activeWeapon=w;
  soundEnabled=localStorage.getItem('trackduel-mute-v4')!=='1';}catch{}
 function updateWeaponHud(){const w=WEAPONS[activeWeapon];$('shoot').textContent=activeWeapon==='track'?'ТРЕКЕР: ЗАЖМИ ЛКМ':activeWeapon==='tap'?'ТАПАЛКА: КЛИКАЙ ЛКМ':'АВИК: ПКМ ЗУМ · ЛКМ ВЫСТРЕЛ';$('weaponHud').innerHTML='<strong>['+({track:'1',tap:'2',sniper:'3'}[activeWeapon])+'] '+w.label+'</strong> · '+w.description+'<div class="small">1 ТРЕКЕР · 2 ТАПАЛКА · 3 АВИК · ПКМ ПРИЦЕЛ · M '+(soundEnabled?'ЗВУК ВКЛ':'БЕЗ ЗВУКА')+'</div>';}
-function selectWeapon(w){if(!WEAPONS[w])return;activeWeapon=w;if(p[me])p[me].weapon=w;aiming=false;mouseDown=false;/* preserve reload delay across weapon switches */
+function selectWeapon(w){if(!WEAPONS[w]||!lobby.weapons[w])return;activeWeapon=w;if(p[me])p[me].weapon=w;aiming=false;mouseDown=false;/* preserve reload delay across weapon switches */
  try{localStorage.setItem('trackduel-weapon-v4',w)}catch{}
  $('gunToast').textContent=WEAPONS[w].label;weaponToastUntil=performance.now()+950;updateWeaponHud();}
 function toggleSound(){soundEnabled=!soundEnabled;try{localStorage.setItem('trackduel-mute-v4',soundEnabled?'0':'1')}catch{}updateWeaponHud();}
@@ -284,7 +349,7 @@ function playShotSound(w){if(!soundEnabled)return;
 }
 
 
-const defaults={size:.83,side:.35,height:-.34,depth:-.56,sens:.21,fov:78};
+const defaults={size:.83,side:.35,height:-.34,depth:-.56,sens:.21,fov:78,scopeSens:.42,scopeFov:24};
 const settings={...defaults};
 try {const saved=JSON.parse(localStorage.getItem('trackduel-v2-settings')||'{}');
   for(const k of Object.keys(defaults))if(Number.isFinite(saved[k])) settings[k]=saved[k];
@@ -295,6 +360,8 @@ const settingRefs=[
   ['height','heightSetting','heightValue',x=>x.toFixed(2)],
   ['depth','depthSetting','depthValue',x=>x.toFixed(2)],
   ['sens','sensSetting','sensValue',x=>x.toFixed(2)],
+  ['scopeSens','scopeSensSetting','scopeSensValue',x=>x.toFixed(2)+'×'],
+  ['scopeFov','scopeFovSetting','scopeFovValue',x=>x+'°'],
   ['fov','fovSetting','fovValue',x=>x+'°']
 ];
 for(const [k,inputId,valueId,fmt] of settingRefs){
@@ -304,7 +371,7 @@ for(const [k,inputId,valueId,fmt] of settingRefs){
 function saveSettings(){try{localStorage.setItem('trackduel-v2-settings',JSON.stringify(settings))}catch{}}
 
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x0b1625);scene.fog=new THREE.Fog(0x0b1625,32,98);
-const camera=new THREE.PerspectiveCamera(settings.fov,innerWidth/innerHeight,.05,130);camera.rotation.order='YXZ';
+const camera=new THREE.PerspectiveCamera(settings.fov,innerWidth/innerHeight,.05,230);camera.rotation.order='YXZ';
 const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=THREE.SRGBColorSpace;
 $('game').appendChild(renderer.domElement);
@@ -315,15 +382,24 @@ function makeBox(x,y,z,w,h,d,color,metal=.08,roughness=.65,material=null){
  const obj=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),material||new THREE.MeshStandardMaterial({color,metalness:metal,roughness}));
  obj.position.set(x,y,z);scene.add(obj);return obj;
 }
-makeBox(0,-.27,0,HALF_X*2+.6,.54,HALF_Z*2+.6,0x152237);
-const grid=new THREE.GridHelper(64,64,0x335471,0x243a52);grid.position.y=.012;scene.add(grid);
-for(const z of [-HALF_Z,HALF_Z])makeBox(0,2.8,z,HALF_X*2,5.6,.55,0x24384a);
-for(const x of [-HALF_X,HALF_X])makeBox(x,2.8,0,.55,5.6,HALF_Z*2,0x24384a);
-for(const x of [-HALF_X+.9,HALF_X-.9])for(const z of [-HALF_Z+.9,HALF_Z-.9]){
- makeBox(x,4.75,z,.22,.72,.22,0x49e9c7);
- const light=new THREE.PointLight(0x37d6c9,8,14);light.position.set(x,4.4,z);scene.add(light);
+const arenaShell=[];
+function arenaBox(...args){const mesh=makeBox(...args);arenaShell.push(mesh);return mesh}
+function rebuildArenaBounds(){
+ for(const m of arenaShell){scene.remove(m);if(m.geometry)m.geometry.dispose();if(m.material)m.material.dispose()}
+ arenaShell.length=0;
+ arenaBox(0,-.27,0,HALF_X*2+.6,.54,HALF_Z*2+.6,0x152237);
+ const grid=new THREE.GridHelper(Math.max(64,Math.ceil(Math.max(HALF_X*2,HALF_Z*2)/2)*2),Math.max(32,Math.ceil(Math.max(HALF_X*2,HALF_Z*2)/2)),0x335471,0x243a52);
+ grid.position.y=.012;scene.add(grid);arenaShell.push(grid);
+ for(const z of [-HALF_Z,HALF_Z])arenaBox(0,2.8,z,HALF_X*2,5.6,.55,0x24384a);
+ for(const x of [-HALF_X,HALF_X])arenaBox(x,2.8,0,.55,5.6,HALF_Z*2,0x24384a);
+ for(const x of [-HALF_X+.9,HALF_X-.9])for(const z of [-HALF_Z+.9,HALF_Z-.9]){
+  arenaBox(x,4.75,z,.22,.72,.22,0x49e9c7);
+  const light=new THREE.PointLight(0x37d6c9,8,14);light.position.set(x,4.4,z);scene.add(light);arenaShell.push(light);
+ }
+ for(let x=-HALF_X+3;x<HALF_X-2;x+=7.6)for(const z of [-HALF_Z+.45,HALF_Z-.45])arenaBox(x,3.18,z,.9,.1,.15,0x3fbaa9,.35,.4);
+ scene.fog.far=Math.max(98,Math.max(HALF_X*2,HALF_Z*2)*1.8);
 }
-for(let x=-23;x<=23;x+=7.6)for(const z of [-HALF_Z+.45,HALF_Z-.45])makeBox(x,3.18,z,.9,.1,.15,0x3fbaa9,.35,.4);
+rebuildArenaBounds();
 
 const obstacles=[], pads=[], mapMeshes=[];
 let buildingMapId=null;
@@ -357,7 +433,7 @@ function rebuildArena(){
  }
  buildingMapId=null;
 }
-function loadIntoArena(raw){activeMap=normalizeMap(raw);resetObjectId();rebuildArena();}
+function loadIntoArena(raw){activeMap=normalizeMap(raw);HALF_X=activeMap.width/2;HALF_Z=activeMap.depth/2;resetObjectId();rebuildArenaBounds();rebuildArena();if(typeof editorOpen!=='undefined'&&editorOpen){updateArenaSizeFields();updateOrbitCamera()}}
 rebuildArena();
 
 function makeAvatar(color){
@@ -434,21 +510,22 @@ function refreshHud(){
  $('myScore').textContent=myScore;$('oppScore').textContent=oppScore;$('roundLabel').textContent='РАУНД '+round;
 }
 function begin(which){
- role=which;me=which==='guest'?1:0;op=1-me;bot=which==='bot';started=true;ended=false;
+ role=which;me=which==='guest'?1:0;op=1-me;bot=which==='bot';started=true;ended=false;enforceAllowedGun();
  overlay.classList.add('hidden');hud.classList.add('on');$('oppName').textContent=bot?'БОТ':'СОПЕРНИК';
- $('mode').textContent=(bot?'TRACK DUEL 4.0 / BOT':'TRACK DUEL 4.0 / ONLINE 1V1')+' · '+activeMap.name.slice(0,22);$('conn').textContent=bot?'LOCAL':'ONLINE';
+ $('mode').textContent=(bot?'TRACK DUEL 5.0 / BOT':'TRACK DUEL 5.0 / ONLINE 1V1')+' · '+activeMap.name.slice(0,22);$('conn').textContent=bot?'LOCAL':'ONLINE';
  $('endControls').style.display='none';$('again').style.display='';hideSettings();
  round=1;myScore=0;oppScore=0;myRematch=otherRematch=false;resetPose();updateWeaponHud();center.textContent='КЛИКНИ ДЛЯ ИГРЫ';refreshUnlock();tryLock();
 }
 function home(){
  cleanup();started=false;ended=false;role='none';bot=false;mouseDown=false;hideSettings();document.exitPointerLock?.();
  overlay.classList.remove('hidden');hud.classList.remove('on');aiming=false;beam.visible=false;remoteBeam.visible=false;$('mainActions').classList.remove('hide');$('hostWait').classList.add('hide');
- loadIntoArena(loadMap());alertMsg('');
+ loadIntoArena(loadMap());updateLobbyUI();alertMsg('');
 }
 $('host').onclick=()=>{
+ if(lobby.mode!=='1v1'||activeMap.spawns.length<2){alertMsg('Для онлайн-игры пока доступен только формат 1v1 с двумя спавнами.');return}
  if(!window.Peer){alertMsg('PeerJS не загрузился. Проверь интернет и обнови страницу.');return}
  cleanup();alertMsg('Подключаемся к серверу комнат…');const code=roomId();
- peer=new Peer('trackduel4-'+code.toLowerCase());
+ peer=new Peer('trackduel5-'+code.toLowerCase());
  peer.on('open',()=>{$('mainActions').classList.add('hide');$('hostWait').classList.remove('hide');$('roomCode').textContent=code;alertMsg('Ожидаем друга…')});
  peer.on('connection',c=>{if(conn){c.close();return}conn=c;bindConnection()});
  peer.on('error',e=>{if(e.type==='unavailable-id'){cleanup();$('host').click();return}alertMsg('Ошибка соединения: '+e.type)});
@@ -458,20 +535,20 @@ $('join').onclick=()=>{
  if(!/^[abcdefghjklmnpqrstuvwxyz23456789]{6}$/.test(code)){alertMsg('Введи шестизначный код комнаты.');return}
  if(!window.Peer){alertMsg('PeerJS не загрузился. Проверь интернет.');return}
  cleanup();alertMsg('Подключаемся к комнате '+code.toUpperCase()+'…');
- peer=new Peer();peer.on('open',()=>{conn=peer.connect('trackduel4-'+code,{reliable:true});bindConnection()});
+ peer=new Peer();peer.on('open',()=>{conn=peer.connect('trackduel5-'+code,{reliable:true});bindConnection()});
  peer.on('error',e=>alertMsg('Не удалось подключиться: '+e.type));
 };
 function bindConnection(){
  conn.on('open',()=>{
    alertMsg('Соединение установлено!');
-   if(peer?.id?.startsWith('trackduel4-')){begin('host');safeSend({t:'start',map:activeMap})}
+   if(peer?.id?.startsWith('trackduel5-')){begin('host');safeSend({t:'start',map:activeMap,lobby})}
    else alertMsg('Соединение есть. Получаем карту от создателя…');
  });
  conn.on('data',handleData);
  conn.on('close',()=>{if(started){center.textContent='ДРУГ ОТКЛЮЧИЛСЯ';ended=true;document.exitPointerLock?.();$('endControls').style.display='flex';$('again').style.display='none'}else alertMsg('Соединение закрыто')});
  conn.on('error',()=>alertMsg('Ошибка канала связи'));
 }
-$('bot').onclick=()=>begin('bot');$('cancel').onclick=home;$('leave').onclick=home;
+$('bot').onclick=()=>{if(lobby.mode==='1v1')begin('bot');};$('cancel').onclick=home;$('leave').onclick=home;
 $('copy').onclick=()=>navigator.clipboard?.writeText($('roomCode').textContent).then(()=>{$('copy').textContent='СКОПИРОВАНО';setTimeout(()=>$('copy').textContent='КОПИРОВАТЬ',1400)}).catch(()=>{alertMsg('Выдели код и скопируй вручную')});
 $('again').onclick=()=>{
  if(bot){myScore=oppScore=0;round=1;ended=false;$('endControls').style.display='none';resetPose();tryLock()}
@@ -483,7 +560,7 @@ function handleData(d){
  if(!d||typeof d!=='object')return;
  if(d.t==='pose'&&started&&!ended){
    const q=p[op];for(const k of ['x','z','y','yaw','pitch'])if(Number.isFinite(d[k]))q[k]=d[k];
-   q.fire=!!d.fire&&d.weapon==='track';if(WEAPONS[d.weapon])q.weapon=d.weapon;lastEnemyPose=performance.now();
+   q.fire=!!d.fire&&d.weapon==='track'&&lobby.weapons.track;if(WEAPONS[d.weapon]&&lobby.weapons[d.weapon])q.weapon=d.weapon;lastEnemyPose=performance.now();
  }
  if(d.t==='sync'&&role==='guest'&&started){
    if(!Array.isArray(d.hp)||!Array.isArray(d.score))return;
@@ -493,14 +570,14 @@ function handleData(d){
    if(d.winner!==undefined&&d.winner!==null)finishRound(d.winner,d.match);
    if(lastHp>hp[me]+.3){lastHitFx=performance.now()}lastHp=hp[me];refreshHud();
  }
- if(d.t==='shot'&&role==='host'&&started&&!ended&&d.weapon!=='track'&&WEAPONS[d.weapon]){
+ if(d.t==='shot'&&role==='host'&&started&&!ended&&d.weapon!=='track'&&WEAPONS[d.weapon]&&lobby.weapons[d.weapon]){
     if(d.weapon===p[op].weapon&&performance.now()-lastEnemyPose<1300){acceptDiscreteShot(op,d.weapon);remoteFlashUntil=performance.now()+95;}
  }
  if(d.t==='shotfx'&&role==='guest'&&started){remoteFlashUntil=performance.now()+95;}
  if(d.t==='rematch'){otherRematch=true;if(myRematch&&role==='host')startRematch()}
  if(d.t==='start'&&!started&&role==='none'){
     if(d.map){try{loadIntoArena(d.map)}catch(e){alertMsg('Карта повреждена: '+e.message);return}}
-    begin('guest');
+    lobby=normalizeLobby(d.lobby);enforceAllowedGun();updateLobbyUI();begin('guest');
   }
 }
 function startRematch(){if(role!=='host')return;
@@ -531,7 +608,7 @@ function shotHit(shooter,target){
    const t=raySphere(origin,dir,{x:target.x,y:target.y+height,z:target.z},r);
    if(t<dist){dist=t;head=isHead;}
  }
- if(dist>62)return {distance:Infinity,head:false};
+ if(dist>155)return {distance:Infinity,head:false};
  for(const c of obstacles)if(Number.isFinite(rayCoverDistance(origin,dir,c,dist)))return {distance:Infinity,head:false};
  return {distance:dist,head};
 }
@@ -547,7 +624,7 @@ function checkRoundOver(){
  }
 }
 function acceptDiscreteShot(i,w){
- if(!started||ended||transition||performance.now()<roundLock||!WEAPONS[w]?.damage)return false;
+ if(!started||ended||transition||performance.now()<roundLock||!WEAPONS[w]?.damage||!lobby.weapons[w])return false;
  if(!(bot||role==='host'))return false;
  const now=performance.now(),config=WEAPONS[w];
  if(now<nextAcceptedShot[i])return false;
@@ -559,7 +636,7 @@ function acceptDiscreteShot(i,w){
 }
 function tryFireDiscrete(){
  if(!started||ended||transition||!locked||settingsOpen||editorOpen||performance.now()<roundLock)return;
- const w=activeWeapon;if(w==='track')return;
+ const w=activeWeapon;if(w==='track'||!lobby.weapons[w])return;
  const now=performance.now(),config=WEAPONS[w];if(now<nextFireAt)return;
  nextFireAt=now+config.cooldown;fireFlashUntil=now+105;shotTrailUntil=now+175;
  playShotSound(w);visualRecoil=Math.max(visualRecoil,w==='sniper'?.13:.055);
@@ -578,7 +655,7 @@ function finishRound(winner,match){
 function resolveDamage(dt){
  if(!(role==='host'||bot)||ended||transition||performance.now()<roundLock)return;
  for(let i=0;i<2;i++){
-   if(!p[i].fire)continue;
+   if(!p[i].fire||!lobby.weapons.track)continue;
    if(shotDistance(p[i],p[1-i])!==Infinity){
      const damage=bot&&i===1?19:34;
      hp[1-i]=Math.max(0,hp[1-i]-damage*dt);
@@ -618,6 +695,7 @@ function applyGravity(q,dt){
  const floor=groundAt(q.x,q.z,previousY,q.vy);
  if(q.y<=floor&&q.vy<0){q.y=floor;q.vy=0;}
  q.padCooldown=Math.max(0,(q.padCooldown||0)-dt);
+ if(!lobby.jumpPads)return;
  for(const pad of pads){
    const d2=(pad.x-q.x)**2+(pad.z-q.z)**2;
    if(d2<pad.radius*pad.radius&&q.y<=.75&&q.padCooldown===0){
@@ -638,6 +716,26 @@ function tickBot(dt,time){
  q.pitch=THREE.MathUtils.clamp(Math.atan2((EYE_HEIGHT+q.y)-(1.22+t.y),Math.hypot(t.x-q.x,t.z-q.z)) * -1,-.65,.65);
  q.fire=Math.sin(time*.00145)>-.23&&Math.abs(err)<.27;q.weapon='track';
 }
+function findKickNormal(q){
+ const limit=.94,edgeX=HALF_X-.76,edgeZ=HALF_Z-.76;
+ if(q.x>=edgeX-limit)return {x:-1,z:0};if(q.x<=-edgeX+limit)return {x:1,z:0};
+ if(q.z>=edgeZ-limit)return {x:0,z:-1};if(q.z<=-edgeZ+limit)return {x:0,z:1};
+ for(const c of obstacles){
+  if(q.y>c.h-.2)continue;
+  const cx=THREE.MathUtils.clamp(q.x,c.x-c.w/2,c.x+c.w/2),cz=THREE.MathUtils.clamp(q.z,c.z-c.d/2,c.z+c.d/2);
+  let nx=q.x-cx,nz=q.z-cz,dist=Math.hypot(nx,nz);
+  if(dist>PLAYER_RADIUS+limit)continue;
+  if(dist<.001){const dx=q.x-c.x,dz=q.z-c.z;if(Math.abs(dx/c.w)>Math.abs(dz/c.d)){nx=Math.sign(dx)||1;nz=0}else{nx=0;nz=Math.sign(dz)||1}dist=1}
+  return {x:nx/dist,z:nz/dist};
+ }
+ return null;
+}
+function tryWallKick(q){
+ if(!lobby.wallBounce||q.kickCooldown>0||q.y<.25)return false;
+ const n=findKickNormal(q);if(!n)return false;
+ q.kickX=n.x*lobby.bounceForce;q.kickZ=n.z*lobby.bounceForce;
+ q.vy=Math.max(q.vy,7.3);q.kickCooldown=.46;return true;
+}
 function moveLocal(dt,time){
  const q=p[me];let f=0,r=0;
  if(locked&&!settingsOpen&&!ended&&!transition){
@@ -648,7 +746,16 @@ function moveLocal(dt,time){
    const dz=(-Math.cos(q.yaw)*f-Math.sin(q.yaw)*r)*speed*dt;
    moveXZ(q,dx,dz);
    const floor=groundAt(q.x,q.z,q.y,q.vy);
-   if(keys.Space&&q.vy===0&&q.y<=floor+.005){q.vy=7.6;}
+   if(keys.Space&&!q.spaceHeld){
+    if(q.vy===0&&q.y<=floor+.005)q.vy=7.6;
+    else if(tryWallKick(q))padFxUntil=time+700;
+   }
+ }
+ q.spaceHeld=!!keys.Space;
+ q.kickCooldown=Math.max(0,(q.kickCooldown||0)-dt);
+ if(Math.abs(q.kickX||0)+Math.abs(q.kickZ||0)>.01){
+  moveXZ(q,q.kickX*dt,q.kickZ*dt);
+  const decay=Math.exp(-dt*4.1);q.kickX*=decay;q.kickZ*=decay;
  }
  applyGravity(q,dt);
  q.weapon=activeWeapon;q.fire=activeWeapon==='track'&&mouseDown&&locked&&!settingsOpen&&!ended&&!transition&&time>=roundLock;
@@ -660,7 +767,9 @@ function moveLocal(dt,time){
  if(q.fire&&time-lastTrackSound>95){lastTrackSound=time;playShotSound('track');fireFlashUntil=time+42;}
  visualRecoil=THREE.MathUtils.damp(visualRecoil,q.fire?.038:0,18,dt);
  trackGun.visible=activeWeapon==='track';tapGun.visible=activeWeapon==='tap';sniperGun.visible=activeWeapon==='sniper';
- camera.fov=THREE.MathUtils.damp(camera.fov,aiming?(activeWeapon==='sniper'?32:activeWeapon==='tap'?63:68):settings.fov,14,dt);camera.updateProjectionMatrix();
+ camera.fov=THREE.MathUtils.damp(camera.fov,aiming?(activeWeapon==='sniper'?settings.scopeFov:activeWeapon==='tap'?63:68):settings.fov,14,dt);camera.updateProjectionMatrix();
+ const scoped=aiming&&activeWeapon==='sniper'&&locked&&!settingsOpen;
+ gun.visible=!scoped;$('scopeOverlay').classList.toggle('active',scoped);hud.classList.toggle('scoped',scoped);
  gun.scale.setScalar(settings.size*(aiming?.91:1));
  gun.position.set(settings.side+Math.sin(bob)*.005,settings.height+Math.abs(Math.sin(bob))*.006,settings.depth);
  gun.rotation.set(-visualRecoil,Math.sin(bob)*.005,-Math.sin(bob)*.008);
@@ -688,7 +797,7 @@ function updateVisual(dt,time){
  const beamLive=mine.fire||time<shotTrailUntil;
  if(beamLive){
    const origin=new THREE.Vector3(mine.x,EYE_HEIGHT+mine.y,mine.z),dir=facing(mine),distance=shotDistance(mine,q);
-   let length=Number.isFinite(distance)?distance:55;
+   let length=Number.isFinite(distance)?distance:155;
    for(const c of obstacles)length=Math.min(length,rayCoverDistance(origin,dir,c,length));
    const end=origin.clone().addScaledVector(dir,length),diff=end.clone().sub(origin);
    beam.position.copy(origin).addScaledVector(diff,.5);beam.quaternion.setFromUnitVectors(beamUp,diff.clone().normalize());
@@ -697,7 +806,7 @@ function updateVisual(dt,time){
  }else beam.visible=false;
  if(q.fire||time<remoteFlashUntil){
    const origin=new THREE.Vector3(q.x,EYE_HEIGHT+q.y,q.z),dir=facing(q);
-   let length=55;for(const c of obstacles)length=Math.min(length,rayCoverDistance(origin,dir,c,length));
+   let length=155;for(const c of obstacles)length=Math.min(length,rayCoverDistance(origin,dir,c,length));
    const diff=dir.clone().multiplyScalar(length);
    remoteBeam.position.copy(origin).addScaledVector(diff,.5);
    remoteBeam.quaternion.setFromUnitVectors(beamUp,dir);
@@ -707,7 +816,7 @@ function updateVisual(dt,time){
  const hit=mine.fire&&shotDistance(mine,q)!==Infinity&&time>=roundLock;
  $('cross').classList.toggle('hit',hit);$('dps').textContent=hit?'34 DPS':'';
  $('damage').classList.toggle('pain',time-lastHitFx<180);
- $('padTip').textContent=time<padFxUntil?'JUMP PAD × BOOST':'';
+ $('padTip').textContent=time<padFxUntil?(lobby.wallBounce&&p[me].kickCooldown>.1?'WALL KICK × BOOST':'JUMP PAD × BOOST'):'';
  pads.forEach((pad,i)=>{pad.ring.material.opacity=.8+.2*Math.sin(time*.003+i);pad.ring.scale.setScalar(pad.scale*(1+.07*Math.sin(time*.004+i)));});
 }
 function animate(time){
@@ -743,12 +852,30 @@ function updateOrbitCamera(){
  editorCamera.lookAt(editorCameraTarget);
 }
 updateOrbitCamera();
-const spawnMarkers=activeMap.spawns.map((s,i)=>{
- const root=new THREE.Group(),col=i?0xff7297:0x6df8c8;
+const spawnMarkers=[];
+function createSpawnMarker(i){
+ const root=new THREE.Group(),col=[0x6df8c8,0xff7297,0xffd872,0xa68aff][i];
  const stand=new THREE.Mesh(new THREE.CylinderGeometry(.6,.7,.13,8),new THREE.MeshBasicMaterial({color:col}));stand.position.y=.09;stand.userData.spawnIndex=i;root.add(stand);
  const diamond=new THREE.Mesh(new THREE.OctahedronGeometry(.55),new THREE.MeshBasicMaterial({color:col,wireframe:true}));diamond.position.y=1.2;diamond.userData.spawnIndex=i;root.add(diamond);
  scene.add(root);root.visible=false;return root;
-});
+}
+function syncSpawnMarkers(){
+ while(spawnMarkers.length>activeMap.spawns.length){const old=spawnMarkers.pop();scene.remove(old);for(const m of old.children){m.geometry?.dispose();m.material?.dispose()}}
+ while(spawnMarkers.length<activeMap.spawns.length)spawnMarkers.push(createSpawnMarker(spawnMarkers.length));
+}
+syncSpawnMarkers();
+const sizeHandles={};
+for(const [axis,color] of [['w',0xff647e],['d',0x57b8ff],['h',0xffd775]]){
+ const mesh=new THREE.Mesh(new THREE.BoxGeometry(.55,.55,.55),new THREE.MeshBasicMaterial({color,depthTest:false,transparent:true,opacity:.95}));
+ mesh.userData.sizeAxis=axis;mesh.visible=false;scene.add(mesh);sizeHandles[axis]=mesh;
+}
+function syncSizeHandles(){
+ const o=selected?.kind==='object'?getSelected():null;
+ for(const [axis,mesh] of Object.entries(sizeHandles)){
+  mesh.visible=!!o&&editorOpen&&editorView==='3d';if(!mesh.visible)continue;
+  mesh.position.set(o.x+(axis==='w'?o.w/2+.45:0),axis==='h'?o.h+.48:o.h/2,o.z+(axis==='d'?o.d/2+.45:0));
+ }
+}
 const previewGhost=new THREE.Mesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshBasicMaterial({color:0x7afee0,transparent:true,opacity:.25,depthWrite:false,wireframe:true}));previewGhost.visible=false;scene.add(previewGhost);
 const editorOutline=new THREE.BoxHelper(previewGhost,0xffef9d);editorOutline.visible=false;scene.add(editorOutline);
 function editorMeshForSelection(){
@@ -757,7 +884,7 @@ function editorMeshForSelection(){
  return null;
 }
 function syncEditor3D(){
- const enabled=editorOpen&&editorView==='3d';
+ const enabled=editorOpen&&editorView==='3d';syncSpawnMarkers();syncSizeHandles();
  spawnMarkers.forEach((m,i)=>{m.visible=enabled;m.position.set(activeMap.spawns[i].x,0,activeMap.spawns[i].z)});
  const target=enabled?editorMeshForSelection():null;
  editorOutline.visible=!!target;
@@ -790,6 +917,13 @@ function editor3DDown(e){
  e.preventDefault();
  const pos=editor3DRay(e);if(!pos)return;editorHover3d=pos;
  if(e.button===2){editorDrag3d={type:'orbit',lastX:e.clientX,lastY:e.clientY};renderer.domElement.setPointerCapture?.(e.pointerId);return}
+ if(tool==='select'&&selected?.kind==='object'){
+  const hits=editorRay.intersectObjects(Object.values(sizeHandles).filter(m=>m.visible),false);
+  if(hits.length){const axis=hits[0].object.userData.sizeAxis,obj=getSelected();saveUndo();
+   editorDrag3d={type:'resize',axis,start:pos,startY:e.clientY,initial:{w:obj.w,d:obj.d,h:obj.h},moved:false};
+   renderer.domElement.setPointerCapture?.(e.pointerId);edMsg('Масштаб: потяни цветной кубик.');return;
+  }
+ }
  if(tool==='select'){
   selected=editor3DPick();updateProperties();
   if(selected){const obj=getSelected();saveUndo();editorDrag3d={type:'move',start:pos,fromX:obj.x,fromZ:obj.z,moved:false};renderer.domElement.setPointerCapture?.(e.pointerId)}
@@ -807,6 +941,14 @@ function editor3DMove(e){
   editorDrag3d.lastX=e.clientX;editorDrag3d.lastY=e.clientY;updateOrbitCamera();return;
  }
  const pos=editor3DRay(e);if(!pos)return;editorHover3d=pos;
+ if(editorDrag3d?.type==='resize'&&selected?.kind==='object'){
+  const o=getSelected(),a=editorDrag3d.axis,initial=editorDrag3d.initial;
+  const delta=a==='w'?(pos.x-editorDrag3d.start.x)*2:a==='d'?(pos.z-editorDrag3d.start.z)*2:(editorDrag3d.startY-e.clientY)*orbitRadius*.009;
+  const maxSize=a==='w'?Math.min(40,HALF_X*2-1.4):a==='d'?Math.min(40,HALF_Z*2-1.4):12;
+  const v=Math.round(THREE.MathUtils.clamp(initial[a]+delta,a==='h'?.3:.5,maxSize)*10)/10;
+  if(Math.abs(v-o[a])>.02){o[a]=v;fitObject(o);rebuildArena();updateProperties();editorDrag3d.moved=true;}
+  return;
+ }
  if(editorDrag3d?.type==='move'&&selected){
   const obj=getSelected();if(!obj)return;
   const wasX=obj.x,wasZ=obj.z;
@@ -818,6 +960,7 @@ function editor3DMove(e){
  syncEditor3D();
 }
 function editor3DUp(){
+ if(editorDrag3d?.type==='resize'&&editorDrag3d.moved)edMsg('Размер изменён в 3D. Нажми «Сохранить».');
  if(editorDrag3d?.type==='move'&&editorDrag3d.moved){rebuildArena();updateProperties();edMsg('Позиция изменена. Сохрани карту перед выходом.');}
  editorDrag3d=null;
 }
@@ -843,20 +986,47 @@ renderer.domElement.addEventListener('pointerup',editor3DUp);
 renderer.domElement.addEventListener('pointercancel',editor3DUp);
 renderer.domElement.addEventListener('wheel',e=>{if(!editorOpen||editorView!=='3d')return;e.preventDefault();orbitRadius=THREE.MathUtils.clamp(orbitRadius*Math.exp(e.deltaY*.0011),18,135);updateOrbitCamera()},{passive:false});
 
-const PX=20, TOOL_NAMES={select:'Выделение',wall:'Стена',cover:'Укрытие',low:'Низкий блок',pillar:'Колонна',platform:'Платформа',pad:'Джамп-пад',spawn0:'Игрок 1',spawn1:'Игрок 2'};
+const TOOL_NAMES={select:'Выделение',wall:'Стена',cover:'Укрытие',low:'Низкий блок',pillar:'Колонна',platform:'Платформа',pad:'Джамп-пад',spawn0:'Игрок 1',spawn1:'Игрок 2',spawn2:'Игрок 3',spawn3:'Игрок 4'};
 let editorOpen=false,tool='select',selected=null,drag=null,hover=null,history=[],redo=[],mapDirty=false;
 const snapCoord=n=>$('gridSnap').checked?Math.round(n*2)/2:Math.round(n*10)/10;
-const mapX=x=>(x+HALF_X)*PX,mapZ=z=>(z+HALF_Z)*PX;
+const pxX=()=>edCanvas.width/(HALF_X*2),pxZ=()=>edCanvas.height/(HALF_Z*2);
+const mapX=x=>(x+HALF_X)*pxX(),mapZ=z=>(z+HALF_Z)*pxZ();
 function pointFromEvent(e){const r=edCanvas.getBoundingClientRect();return {x:(e.clientX-r.left)/r.width*HALF_X*2-HALF_X,z:(e.clientY-r.top)/r.height*HALF_Z*2-HALF_Z}}
 function edMsg(t){$('editorStatus').textContent=t}
 function editorSnapshot(){return JSON.stringify(activeMap)}
 function saveUndo(){history.push(editorSnapshot());if(history.length>45)history.shift();redo.length=0;mapDirty=true}
 function updateEditorStats(){
- $('mapStats').textContent=`${activeMap.objects.length}/120 объектов · ${activeMap.objects.filter(o=>o.type==='pad').length} джамп-падов · 2 спавна`;
+ $('mapStats').textContent=`${activeMap.width}×${activeMap.depth} · ${activeMap.objects.length}/120 объектов · ${activeMap.objects.filter(o=>o.type==='pad').length} джамп-падов · ${activeMap.spawns.length} спавна`;
+ if(typeof editorOpen!=='undefined')updateArenaSizeFields();
 }
-function selectTool(t){tool=t;document.querySelectorAll('.tool').forEach(b=>b.classList.toggle('active',b.dataset.tool===t));edMsg(t==='select'?'Нажми на объект и перетащи его.':`Инструмент «${TOOL_NAMES[t]}»: нажми на карте.`)}
+function selectTool(t){if(t.startsWith('spawn')&&Number(t.slice(-1))>=activeMap.spawns.length)return;tool=t;document.querySelectorAll('.tool').forEach(b=>b.classList.toggle('active',b.dataset.tool===t));edMsg(t==='select'?'Нажми на объект и перетащи его.':`Инструмент «${TOOL_NAMES[t]}»: нажми на карте.`)}
 function getSelected(){return selected?.kind==='object'?activeMap.objects.find(o=>o.id===selected.id):selected?.kind==='spawn'?activeMap.spawns[selected.index]:null}
+function updateArenaSizeFields(){
+ $('arenaWidth').value=activeMap.width;$('arenaDepth').value=activeMap.depth;
+ const w=activeMap.width*20,h=activeMap.depth*20;
+ if(edCanvas.width!==w)edCanvas.width=w;if(edCanvas.height!==h)edCanvas.height=h;
+ edCanvas.style.aspectRatio=activeMap.width+'/'+activeMap.depth;
+}
+for(const [key,id] of [['width','arenaWidth'],['depth','arenaDepth']])$(id).addEventListener('change',()=>{
+ const value=mapNum($(id).value,activeMap[key],key==='width'?32:24,key==='width'?100:90);
+ if(value===activeMap[key])return;
+ saveUndo();const raw=JSON.parse(editorSnapshot());raw[key]=value;
+ loadIntoArena(raw);selected=null;updateProperties();
+ orbitRadius=Math.max(orbitRadius,Math.max(HALF_X*2,HALF_Z*2)*1.16);updateOrbitCamera();
+ edMsg('Границы карты изменены. Пол, стены и объекты обновлены; сохрани изменения.');
+});
+$('addSpawn').onclick=()=>{
+ if(activeMap.spawns.length>=4){edMsg('Доступно максимум 4 спавна.');return}
+ saveUndo();const i=activeMap.spawns.length;
+ activeMap.spawns.push({x:i===2?-Math.min(12,HALF_X-4):Math.min(12,HALF_X-4),z:i===2?-Math.min(8,HALF_Z-4):Math.min(8,HALF_Z-4)});
+ selected={kind:'spawn',index:i};updateProperties();syncSpawnMarkers();edMsg('Добавлен спавн №'+(i+1)+'. Перемести его инструментом или мышью.');
+};
+$('removeSpawn').onclick=()=>{
+ if(activeMap.spawns.length<=2){edMsg('Нужно минимум 2 спавна.');return}
+ saveUndo();activeMap.spawns.pop();selected=null;selectTool('select');syncSpawnMarkers();updateProperties();edMsg('Последний спавн удалён.');
+};
 function updateProperties(){
+ for(let i=2;i<4;i++)document.querySelector(`[data-tool=spawn${i}]`).classList.toggle('hide',i>=activeMap.spawns.length);
  const o=getSelected(),has=!!o; $('editorObjectProps').classList.toggle('hide',!has);
  $('editorSelection').textContent=!has?'НИЧЕГО НЕ ВЫБРАНО':selected.kind==='spawn'?'ТОЧКА ПОЯВЛЕНИЯ '+(selected.index+1):TOOL_NAMES[o.type].toUpperCase();
  if(has){$('propX').value=+o.x.toFixed(2);$('propZ').value=+o.z.toFixed(2)}
@@ -871,17 +1041,17 @@ function validSpawns(){return !activeMap.spawns.some(collidesSpawn)}
 function saveCurrentMap(){
  activeMap.name=($('mapName').value.trim()||'Моя арена').slice(0,36);
  if(!validSpawns()){edMsg('⚠ Спавн внутри укрытия. Передвинь точку появления, чтобы сохранить карту.');return false}
- try{localStorage.setItem('trackduel-map-v3',editorSnapshot());mapDirty=false;edMsg('✓ Карта сохранена в браузере. Можно играть или скачать JSON.');return true}
+ try{localStorage.setItem('trackduel-map-v3',editorSnapshot());mapDirty=false;updateLobbyUI();edMsg('✓ Карта сохранена в браузере. Можно играть или скачать JSON.');return true}
  catch(e){edMsg('⚠ Браузер не разрешил сохранение. Скачай JSON, чтобы не потерять карту.');return false}
 }
-function openEditor(){if(started)return;editorOpen=true;ed.classList.remove('hide');$('mapName').value=activeMap.name;selected=null;history=[];redo=[];mapDirty=false;selectTool('select');updateProperties();switchEditorView('3d');drawEditor()}
+function openEditor(){if(started)return;editorOpen=true;ed.classList.remove('hide');$('mapName').value=activeMap.name;selected=null;history=[];redo=[];mapDirty=false;selectTool('select');updateProperties();switchEditorView('3d');updateArenaSizeFields();drawEditor()}
 function closeEditor(){if(!saveCurrentMap())return false;editorOpen=false;selected=null;editorDrag3d=null;syncEditor3D();ed.classList.add('hide');$('game').appendChild(renderer.domElement);resizeRendererForView();rebuildArena();return true}
 $('openEditor').onclick=openEditor;$('mapDone').onclick=closeEditor;$('mapSave').onclick=saveCurrentMap;
 $('mapTest').onclick=()=>{if(closeEditor())begin('bot')};
 $('mapName').addEventListener('change',()=>{saveUndo();activeMap.name=($('mapName').value.trim()||'Моя арена').slice(0,36)});
 for(const b of document.querySelectorAll('.tool'))b.addEventListener('click',()=>selectTool(b.dataset.tool));
 function containsObject(o,x,z){return o.type==='pad'?Math.hypot(o.x-x,o.z-z)<1.8:Math.abs(x-o.x)<=o.w/2&&Math.abs(z-o.z)<=o.d/2}
-function pickAt(x,z){for(let i=0;i<2;i++)if(Math.hypot(activeMap.spawns[i].x-x,activeMap.spawns[i].z-z)<1.1)return {kind:'spawn',index:i};
+function pickAt(x,z){for(let i=0;i<activeMap.spawns.length;i++)if(Math.hypot(activeMap.spawns[i].x-x,activeMap.spawns[i].z-z)<1.1)return {kind:'spawn',index:i};
  for(let i=activeMap.objects.length-1;i>=0;i--)if(containsObject(activeMap.objects[i],x,z))return {kind:'object',id:activeMap.objects[i].id};return null}
 function assignPos(item,x,z){if(!item)return;item.x=snapCoord(x);item.z=snapCoord(z);
  if(selected?.kind==='object')fitObject(item);
@@ -908,8 +1078,8 @@ $('rotateObject').onclick=rotateSelected;$('deleteObject').onclick=deleteSelecte
 for(const [key,id] of [['x','propX'],['z','propZ'],['w','propW'],['d','propD'],['h','propH'],['color','propColor']]){
  $(id).addEventListener('change',()=>{const o=getSelected();if(!o)return;saveUndo();
   if(key==='color')o.color=$(id).value;
-  else if(key==='x'||key==='z')o[key]=mapNum($(id).value,o[key],key==='x'?-25:-19,key==='x'?25:19);
-  else o[key]=mapNum($(id).value,o[key],key==='h'?.3:.5,key==='h'?8:25);
+  else if(key==='x'||key==='z')o[key]=mapNum($(id).value,o[key],key==='x'?-HALF_X+1:-HALF_Z+1,key==='x'?HALF_X-1:HALF_Z-1);
+  else o[key]=mapNum($(id).value,o[key],key==='h'?.3:.5,key==='h'?12:key==='w'?Math.min(40,HALF_X*2-1.4):Math.min(40,HALF_Z*2-1.4));
   if(selected.kind==='object')fitObject(o);else assignPos(o,o.x,o.z);
   rebuildArena();updateProperties();edMsg('Свойства обновлены. Нажми «Сохранить»')
  })
@@ -950,9 +1120,9 @@ $('mapImport').addEventListener('change',async e=>{const file=e.target.files[0];
 });
 function drawEditor(){
  if(!editorOpen)return;
- ctx.fillStyle='#111f30';ctx.fillRect(0,0,1040,800);
- for(let x=-HALF_X;x<=HALF_X;x+=2){ctx.beginPath();ctx.strokeStyle=x===0?'#506b7c':'#233b51';ctx.lineWidth=x===0?2:1;ctx.moveTo(mapX(x),0);ctx.lineTo(mapX(x),800);ctx.stroke()}
- for(let z=-HALF_Z;z<=HALF_Z;z+=2){ctx.beginPath();ctx.strokeStyle=z===0?'#506b7c':'#233b51';ctx.lineWidth=z===0?2:1;ctx.moveTo(0,mapZ(z));ctx.lineTo(1040,mapZ(z));ctx.stroke()}
+ ctx.fillStyle='#111f30';ctx.fillRect(0,0,edCanvas.width,edCanvas.height);
+ for(let x=-Math.floor(HALF_X/2)*2;x<=HALF_X;x+=2){ctx.beginPath();ctx.strokeStyle=x===0?'#506b7c':'#233b51';ctx.lineWidth=x===0?2:1;ctx.moveTo(mapX(x),0);ctx.lineTo(mapX(x),edCanvas.height);ctx.stroke()}
+ for(let z=-Math.floor(HALF_Z/2)*2;z<=HALF_Z;z+=2){ctx.beginPath();ctx.strokeStyle=z===0?'#506b7c':'#233b51';ctx.lineWidth=z===0?2:1;ctx.moveTo(0,mapZ(z));ctx.lineTo(edCanvas.width,mapZ(z));ctx.stroke()}
  ctx.font='13px system-ui';ctx.textAlign='left';ctx.fillStyle='#58798d';for(let x=-20;x<=20;x+=10)ctx.fillText(String(x),mapX(x)+4,18);
  for(let z=-10;z<=10;z+=10)ctx.fillText(String(z),4,mapZ(z)-4);
  for(const o of activeMap.objects){
@@ -961,18 +1131,18 @@ function drawEditor(){
    ctx.beginPath();ctx.arc(px,pz,33,0,Math.PI*2);ctx.fillStyle='#08748e';ctx.fill();ctx.lineWidth=4;ctx.strokeStyle=active?'#fff099':'#61eafa';ctx.stroke();
    ctx.beginPath();ctx.arc(px,pz,14,0,Math.PI*2);ctx.fillStyle='#7cf7ff';ctx.fill();
   }else{
-   ctx.fillStyle=o.color;ctx.globalAlpha=.92;ctx.fillRect(px-o.w*PX/2,pz-o.d*PX/2,o.w*PX,o.d*PX);
-   ctx.globalAlpha=1;ctx.strokeStyle=active?'#ffe18c':o.type==='platform'?'#9d94f9':'#9dc0d1';ctx.lineWidth=active?5:2;ctx.strokeRect(px-o.w*PX/2,pz-o.d*PX/2,o.w*PX,o.d*PX);
+   ctx.fillStyle=o.color;ctx.globalAlpha=.92;ctx.fillRect(px-o.w*pxX()/2,pz-o.d*pxZ()/2,o.w*pxX(),o.d*pxZ());
+   ctx.globalAlpha=1;ctx.strokeStyle=active?'#ffe18c':o.type==='platform'?'#9d94f9':'#9dc0d1';ctx.lineWidth=active?5:2;ctx.strokeRect(px-o.w*pxX()/2,pz-o.d*pxZ()/2,o.w*pxX(),o.d*pxZ());
    ctx.fillStyle=active?'#fff1ba':'#cae1ed';ctx.font='bold 12px system-ui';ctx.textAlign='center';ctx.fillText(o.type==='wall'?'СТЕНА':o.type==='platform'?'ПЛАТФ.':o.type==='pillar'?'СТОЛБ':o.type==='low'?'НИЗ.':'УКР.',px,pz+4);
   }ctx.restore();
  }
- for(let i=0;i<2;i++){const o=activeMap.spawns[i],x=mapX(o.x),z=mapZ(o.z),color=i===0?'#62eebd':'#ff7a93';
+ for(let i=0;i<activeMap.spawns.length;i++){const o=activeMap.spawns[i],x=mapX(o.x),z=mapZ(o.z),color=['#62eebd','#ff7a93','#ffd872','#a68aff'][i];
   ctx.beginPath();ctx.arc(x,z,21,0,Math.PI*2);ctx.fillStyle='#0a2632';ctx.fill();ctx.strokeStyle=selected?.kind==='spawn'&&selected.index===i?'#fff29e':color;ctx.lineWidth=4;ctx.stroke();
   ctx.fillStyle=color;ctx.font='bold 21px system-ui';ctx.textAlign='center';ctx.fillText(String(i+1),x,z+8);
   ctx.fillStyle=color;ctx.beginPath();ctx.moveTo(x+(i===0?28:-28),z);ctx.lineTo(x+(i===0?38:-38),z-8);ctx.lineTo(x+(i===0?38:-38),z+8);ctx.closePath();ctx.fill();
  }
  if(hover&&tool!=='select'&& !tool.startsWith('spawn')){
-  ctx.globalAlpha=.4;ctx.strokeStyle='#9cffe9';ctx.setLineDash([6,6]);const [w,d]=MAP_DIMS[tool];ctx.strokeRect(mapX(snapCoord(hover.x))-w*PX/2,mapZ(snapCoord(hover.z))-d*PX/2,w*PX,d*PX);ctx.setLineDash([]);ctx.globalAlpha=1;
+  ctx.globalAlpha=.4;ctx.strokeStyle='#9cffe9';ctx.setLineDash([6,6]);const [w,d]=MAP_DIMS[tool];ctx.strokeRect(mapX(snapCoord(hover.x))-w*pxX()/2,mapZ(snapCoord(hover.z))-d*pxZ()/2,w*pxX(),d*pxZ());ctx.setLineDash([]);ctx.globalAlpha=1;
  }
 }
 function drawEditorLoop(){requestAnimationFrame(drawEditorLoop);if(editorOpen&&editorView==='2d')drawEditor()}
@@ -1005,7 +1175,7 @@ document.addEventListener('mousemove',e=>{
  // Pointer-lock events can occasionally contain huge OS/browser jumps; discard those spikes.
  if(!Number.isFinite(e.movementX)||!Number.isFinite(e.movementY))return;
  if(Math.abs(e.movementX)>125||Math.abs(e.movementY)>125)return;
- const q=p[me],s=settings.sens/100*(aiming&&activeWeapon==='sniper'?.42:1);
+ const q=p[me],s=settings.sens/100*(aiming&&activeWeapon==='sniper'?settings.scopeSens:1);
  q.yaw-=e.movementX*s;
  q.pitch=THREE.MathUtils.clamp(q.pitch-e.movementY*s,-1.3,1.3);
 });
@@ -1022,7 +1192,7 @@ document.addEventListener('pointerlockchange',()=>{locked=document.pointerLockEl
 document.addEventListener('visibilitychange',()=>{if(document.hidden){mouseDown=false;for(const k in keys)keys[k]=false}});
 window.addEventListener('blur',()=>{mouseDown=false;for(const k in keys)keys[k]=false});
 window.addEventListener('beforeunload',cleanup);
-updateWeaponHud();window.trackDuelReady=true;
+updateWeaponHud();updateLobbyUI();window.trackDuelReady=true;
 </script>
 </body>
 </html>
