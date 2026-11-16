@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TRACK DUEL 3.0 — Map Creator & 1v1</title>
+<title>TRACK DUEL 4.0 — 3D Workshop & Weapons</title>
 <style>
 :root{color-scheme:dark;--accent:#56f2cf;--pink:#ff6985;--dark:#080d18;--dim:#9aacbf}
 *{box-sizing:border-box}html,body{height:100%;margin:0;overflow:hidden;background:var(--dark);font-family:Inter,system-ui,-apple-system,Segoe UI,Arial,sans-serif;color:#f4faff;user-select:none}
@@ -25,6 +25,9 @@ button,input{font:inherit}button{cursor:pointer}canvas{display:block}#game{posit
 #settings{display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(390px,calc(100vw - 30px));max-height:calc(100vh - 40px);overflow:auto;pointer-events:auto;background:#0b1827f9;border:1px solid #4c7184;border-radius:14px;padding:22px;z-index:9;box-shadow:0 30px 90px #000d}#settings.open{display:block}#settings h2{margin:0 0 6px;font-size:21px;letter-spacing:-.03em}#settings p{margin:0 0 16px;font-size:12px;line-height:1.45;color:#a7bccf}
 .rangeRow{display:block;margin:13px 0;font-size:12px;font-weight:750}.rangeRow .rangeHead{display:flex;justify-content:space-between;margin-bottom:5px}.rangeRow output{color:#5df4d2;font-variant-numeric:tabular-nums}input[type=range]{display:block;width:100%;accent-color:#55efce;cursor:pointer}#closeSettings{margin-top:11px;width:100%}
 #settingsHint{position:absolute;right:24px;bottom:16px;color:#96bdc6;font-size:10px}
+#weaponHud{position:absolute;left:24px;bottom:54px;font-size:12px;color:#d5f7ff;line-height:1.65;letter-spacing:.03em;text-shadow:0 2px 6px #000}
+#weaponHud strong{color:#67f6d8}#weaponHud .small{color:#97b3cb;font-size:10px}
+#gunToast{position:absolute;left:50%;top:64%;transform:translateX(-50%);color:#b5fff3;font-size:12px;font-weight:800;letter-spacing:.07em;text-shadow:0 2px 8px #000}
 #padTip{position:absolute;top:122px;right:24px;font-size:11px;color:#67f4f9;font-weight:850}
 @media(max-width:620px){.shell{padding:20px}.bars{gap:7px;padding:15px 10px}.health{width:36vw}.barhead{font-size:9px}.score{font-size:23px}#bottom{font-size:10px}#settingsHint{display:none}#conn,#mode{top:66px;font-size:9px}#mode{left:10px}#conn{right:10px}#padTip{top:98px;right:10px}}
 
@@ -46,7 +49,15 @@ button,input{font:inherit}button{cursor:pointer}canvas{display:block}#game{posit
 .tool .toolKey{font-size:10px;color:#8faabc;border:1px solid #426075;padding:2px 5px;border-radius:5px;min-width:19px;text-align:center}
 .tool.active .toolKey{border-color:#47b29c;color:#9bffdf}
 .editorStage{min-width:0;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px solid #314a5b;background:radial-gradient(ellipse,#163044,#0a1724);border-radius:12px;overflow:hidden;padding:10px;gap:10px}
+#editorViewBar{display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap;width:100%}
+#editorViewBar .btn{padding:8px 16px;font-size:11px}
+#editorViewBar .activeView{border-color:#58ebd2;background:#1c594d;color:#befff1}
+#editor3D{display:block;position:relative;flex:1;width:100%;min-height:220px;background:#101e2c;border:1px solid #517080;border-radius:7px;overflow:hidden;cursor:crosshair;touch-action:none}
+#editor3D.hide{display:none!important}
+#editor3D canvas{width:100%;height:100%;display:block;touch-action:none}
+#editor3D .viewHelp{position:absolute;bottom:10px;left:12px;right:12px;text-align:center;color:#c8dbe8;font-size:11px;pointer-events:none;text-shadow:0 1px 5px #000}
 #editorCanvas{display:block;width:auto;max-width:100%;max-height:calc(100% - 36px);height:auto;aspect-ratio:13/10;object-fit:contain;border:1px solid #517080;border-radius:6px;cursor:crosshair;touch-action:none;box-shadow:0 16px 60px #0007}
+#editorCanvas.hide{display:none!important}
 #editorStatus{color:#83e7cf;font-size:11px;min-height:16px;text-align:center;max-width:95%;line-height:1.35}
 .editorLine{height:1px;background:#2a4657;margin:13px 0}
 .editorField{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:10px 0;color:#b4c9d4;font-size:11px}
@@ -74,10 +85,10 @@ button,input{font:inherit}button{cursor:pointer}canvas{display:block}#game{posit
     <div class="score"><span id="myScore">0</span> : <span id="oppScore">0</span><small id="roundLabel">РАУНД 1</small></div>
     <div class="health right"><div class="barhead"><span id="oppName">СОПЕРНИК</span><span id="enemyhp">100 HP</span></div><div class="track"><div class="fill" id="enemyfill"></div></div></div>
   </div>
-  <div id="mode">TRACK DUEL 3.0</div><div id="conn"></div>
-  <div id="cross"></div><div id="centerMessage"></div><div id="dps"></div><div id="padTip"></div>
-  <div id="shoot">УДЕРЖИВАЙ ЛКМ НА ЦЕЛИ</div>
-  <div id="bottom">WASD — движение · SHIFT — бег · ПРОБЕЛ — прыжок · V — настройки · ESC — курсор</div>
+  <div id="mode">TRACK DUEL 4.0</div><div id="conn"></div>
+  <div id="cross"></div><div id="centerMessage"></div><div id="dps"></div><div id="padTip"></div><div id="weaponHud"></div><div id="gunToast"></div>
+  <div id="shoot">ТРЕКЕР: УДЕРЖИВАЙ ЛКМ</div>
+  <div id="bottom">WASD — движение · SHIFT — бег · SPACE — прыжок · 1–3 — оружие · ПКМ — прицел · V — настройки · ESC — курсор</div>
   <div id="settingsHint">V — ОРУЖИЕ / ПРИЦЕЛ</div>
   <div id="endControls"><button class="btn primary" id="again">РЕВАНШ</button><button class="btn" id="leave">В МЕНЮ</button></div>
   <div id="unlock">КЛИКНИ, ЧТОБЫ ВЕРНУТЬСЯ В ИГРУ</div>
@@ -93,24 +104,24 @@ button,input{font:inherit}button{cursor:pointer}canvas{display:block}#game{posit
   </section>
 </div>
 <div id="overlay"><div class="shell">
-  <div class="brand">MULTIPLAYER AIM TRAINER · V3 / MAP CREATOR</div>
+  <div class="brand">MULTIPLAYER AIM TRAINER · V4 / 3D WORKSHOP</div>
   <h1 class="title">TRACK<span>.</span>DUEL</h1>
-  <p class="sub">Создавай собственную арену: стены, укрытия, платформы, джамп-пады и точки появления. Тренируй трекинг с ботом или отправь другу код комнаты — он получит твою карту автоматически.</p>
+  <p class="sub">Создавай карту в интерактивном 3D-редакторе, испытывай джамп-пады и новые оружия: трекер, тапалку и авик. Играй против бота или друга в 1 на 1 — хост поделится своей картой автоматически.</p>
   <div id="mainActions" class="actions">
     <button class="btn primary" id="host">СОЗДАТЬ КОМНАТУ ДЛЯ ДРУГА</button>
     <div class="join"><input id="codeInput" maxlength="6" placeholder="КОД КОМНАТЫ" autocomplete="off" spellcheck="false"><button class="btn" id="join">ВОЙТИ</button></div>
     <button class="btn" id="bot">ИГРАТЬ С БОТОМ</button>
     <button class="btn" id="openEditor" style="border-color:#367e75;color:#8ff9df">✦ СОЗДАТЬ / ИЗМЕНИТЬ КАРТУ</button>
   </div>
-  <div id="hostWait" class="hide"><div class="room"><div><div class="mini">КОД КОМНАТЫ</div><div class="code" id="roomCode">······</div></div><button class="copy" id="copy">КОПИРОВАТЬ</button></div><p class="mini">Откройте оба версию 3.0. Карта создателя комнаты передаётся другу автоматически. Интернет нужен для Three.js и PeerJS.</p><button class="btn" id="cancel">ОТМЕНИТЬ</button></div>
+  <div id="hostWait" class="hide"><div class="room"><div><div class="mini">КОД КОМНАТЫ</div><div class="code" id="roomCode">······</div></div><button class="copy" id="copy">КОПИРОВАТЬ</button></div><p class="mini">Откройте оба версию 4.0. Карта создателя комнаты передаётся другу автоматически. Интернет нужен для Three.js и PeerJS.</p><button class="btn" id="cancel">ОТМЕНИТЬ</button></div>
   <div class="status" id="status"></div>
   <div class="divider"></div>
-  <div class="help"><span><b>WASD</b> движение</span><span><b>МЫШЬ</b> трекинг</span><span><b>ЛКМ</b> урон</span><span><b>SPACE</b> прыжок</span><span><b>ГОЛУБЫЕ ПЛАТФОРМЫ</b> джамп-пады</span><span><b>V</b> настройки</span></div>
+  <div class="help"><span><b>1/2/3</b> трек / тапалка / авик</span><span><b>ПКМ</b> зум</span><span><b>M</b> звук</span><span><b>WASD</b> движение</span><span><b>ЛКМ</b> стрельба</span><span><b>SPACE</b> прыжок</span><span><b>ГОЛУБЫЕ ПЛАТФОРМЫ</b> джамп-пады</span><span><b>V</b> настройки</span></div>
 </div></div>
 <!-- Map editor lives in the same HTML as the FPS, so it also works on GitHub Pages. -->
 <div id="mapEditor" class="hide" aria-label="Редактор арен">
   <header class="editorTop">
-    <div><div class="tag">TRACK DUEL / WORKSHOP</div><div class="editorBrand">MAP <span>CREATOR</span> <small class="editorSmallBadge">3.0</small></div></div>
+    <div><div class="tag">TRACK DUEL / WORKSHOP</div><div class="editorBrand">MAP <span>CREATOR</span> <small class="editorSmallBadge">4.0</small></div></div>
     <div class="topActions">
       <input id="mapName" maxlength="36" value="Моя арена" aria-label="Название карты">
       <button class="btn" id="mapSave">СОХРАНИТЬ</button>
@@ -135,13 +146,15 @@ button,input{font:inherit}button{cursor:pointer}canvas{display:block}#game{posit
       <div class="editorLine"></div>
       <h3>Шаблоны</h3>
       <div class="edButtons"><button class="btn" id="presetClassic">КЛАССИКА</button><button class="btn" id="presetEmpty">ПУСТАЯ</button></div>
-      <button class="btn" id="presetMirrored" style="width:100%">СИММЕТРИЧНАЯ АРЕНА</button>
+      <button class="btn" id="presetMirrored" style="width:100%">СИММЕТРИЧНАЯ АРЕНА</button><button class="btn" id="presetParkour" style="width:100%;margin-top:6px">ДЖАМП-ПАРКУР</button>
       <div class="editorLine"></div>
       <label class="editorField">Привязка к сетке <input type="checkbox" id="gridSnap" checked></label>
-      <p class="tiny">ЛКМ — поставить или перетащить. ПКМ — выделить объект. R — повернуть. Delete — удалить. Ctrl+Z — отмена.</p>
+      <p class="tiny">В 3D: ЛКМ — поставить/перетащить, ПКМ — вращать камеру, колесо — масштаб. В 2D: ЛКМ — поставить/двигать, ПКМ — выбрать. R — повернуть, Delete — удалить, Ctrl+Z — отмена.</p>
     </aside>
     <main class="editorStage">
-      <canvas id="editorCanvas" width="1040" height="800" aria-label="Вид карты сверху"></canvas>
+      <div id="editorViewBar"><button class="btn activeView" id="view3D">◈ 3D ВИД</button><button class="btn" id="view2D">▦ СВЕРХУ 2D</button><span class="tiny">ПКМ + движение — вращать · колесо — приближать</span></div>
+      <div id="editor3D"><div class="viewHelp">ЛКМ — выбрать / переместить / построить · ПКМ — вращать камеру · колесо — масштаб</div></div>
+      <canvas id="editorCanvas" class="hide" width="1040" height="800" aria-label="Вид карты сверху"></canvas>
       <div id="editorStatus">Выбери объект слева, затем нажми на карту.</div>
     </main>
     <aside class="editorPanel editorProps">
@@ -162,14 +175,14 @@ button,input{font:inherit}button{cursor:pointer}canvas{display:block}#game{posit
       <div class="editorLine"></div>
       <h3>Обзор карты</h3>
       <p id="mapStats" class="tiny"></p>
-      <p class="tiny">Размер арены: 52 × 40. Голубые круги — джамп-пады. Зелёная и розовая метки — точки появления игроков.</p>
+      <p class="tiny">Размер арены: 52 × 40. Голубые круги — джамп-пады. Зелёная и розовая метки — точки появления игроков. Сначала редактируем высоту объектов; полноценный рельеф пола — следующим этапом.</p>
       <div class="editorLine"></div>
       <h3>Полезно</h3>
       <p class="tiny">Высокая стена полностью закрывает игрока. Низкие укрытия можно перепрыгнуть. На платформы можно приземляться сверху. Джамп-пады подбрасывают вверх.</p>
     </aside>
   </div>
   <footer class="editorFoot">
-    <div class="legend">1–9 инструменты · R поворот · Delete удалить · Ctrl+Z отменить · Ctrl+Y повторить</div>
+    <div class="legend">1–9 инструменты · 3D и 2D вид · R поворот · Delete удалить · Ctrl+Z отменить · Ctrl+Y повторить</div>
     <div class="fileControls">
       <button class="btn" id="mapUndo">↶ ОТМЕНА</button><button class="btn" id="mapRedo">↷ ПОВТОР</button>
       <button class="btn" id="mapExport">↓ СКАЧАТЬ JSON</button><button class="btn" id="mapImportButton">↑ ЗАГРУЗИТЬ JSON</button>
@@ -238,12 +251,38 @@ let activeMap=loadMap(),nextObjectId=1;
 function allocateId(){return nextObjectId++}
 function resetObjectId(){nextObjectId=Math.max(1,...activeMap.objects.map(o=>o.id+1))}
 resetObjectId();
-const spawn = () => activeMap.spawns.map((v,i)=>({x:v.x,y:0,z:v.z,yaw:i===0?-Math.PI/2:Math.PI/2,pitch:0,vy:0,fire:false,padCooldown:0}));
+const spawn = () => activeMap.spawns.map((v,i)=>({x:v.x,y:0,z:v.z,yaw:i===0?-Math.PI/2:Math.PI/2,pitch:0,vy:0,fire:false,weapon:'track',padCooldown:0}));
 let p=spawn(),hp=[100,100],me=0,op=1,round=1,myScore=0,oppScore=0;
 let role='none',bot=false,started=false,ended=false,locked=false,settingsOpen=false;
 let peer=null,conn=null,myRematch=false,otherRematch=false;
 let mouseDown=false, keys=Object.create(null), last=performance.now(), sendAcc=0, syncAcc=0;
 let roundLock=0,transition=0,lastHitFx=0,lastHp=100, padFxUntil=0;
+const WEAPONS={
+ track:{label:'ТРЕКЕР',description:'НЕПРЕРЫВНЫЙ ЛУЧ',dps:34},
+ tap:{label:'ТАПАЛКА',description:'12 ТЕЛО · 18 ГОЛОВА · 0.23 СЕК',damage:12,cooldown:230},
+ sniper:{label:'АВИК',description:'70 ТЕЛО · 100 ГОЛОВА · 1.55 СЕК',damage:70,cooldown:1550}
+};
+let activeWeapon='track', nextFireAt=0,lastTrackSound=0,fireFlashUntil=0,shotTrailUntil=0,aiming=false,soundEnabled=true, soundCtx=null,weaponToastUntil=0,remoteFlashUntil=0;
+const acceptedShots=[-100000,-100000],nextAcceptedShot=[0,0];
+try{const w=localStorage.getItem('trackduel-weapon-v4');if(WEAPONS[w])activeWeapon=w;
+ soundEnabled=localStorage.getItem('trackduel-mute-v4')!=='1';}catch{}
+function updateWeaponHud(){const w=WEAPONS[activeWeapon];$('shoot').textContent=activeWeapon==='track'?'ТРЕКЕР: ЗАЖМИ ЛКМ':activeWeapon==='tap'?'ТАПАЛКА: КЛИКАЙ ЛКМ':'АВИК: ПКМ ЗУМ · ЛКМ ВЫСТРЕЛ';$('weaponHud').innerHTML='<strong>['+({track:'1',tap:'2',sniper:'3'}[activeWeapon])+'] '+w.label+'</strong> · '+w.description+'<div class="small">1 ТРЕКЕР · 2 ТАПАЛКА · 3 АВИК · ПКМ ПРИЦЕЛ · M '+(soundEnabled?'ЗВУК ВКЛ':'БЕЗ ЗВУКА')+'</div>';}
+function selectWeapon(w){if(!WEAPONS[w])return;activeWeapon=w;if(p[me])p[me].weapon=w;aiming=false;mouseDown=false;/* preserve reload delay across weapon switches */
+ try{localStorage.setItem('trackduel-weapon-v4',w)}catch{}
+ $('gunToast').textContent=WEAPONS[w].label;weaponToastUntil=performance.now()+950;updateWeaponHud();}
+function toggleSound(){soundEnabled=!soundEnabled;try{localStorage.setItem('trackduel-mute-v4',soundEnabled?'0':'1')}catch{}updateWeaponHud();}
+function playShotSound(w){if(!soundEnabled)return;
+ try{const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
+  if(!soundCtx)soundCtx=new AC();if(soundCtx.state==='suspended')soundCtx.resume().catch(()=>{});
+  const now=soundCtx.currentTime,osc=soundCtx.createOscillator(),gain=soundCtx.createGain();
+  osc.type=w==='sniper'?'triangle':'sine';const base=w==='sniper'?185:w==='tap'?365:525;
+  osc.frequency.setValueAtTime(base,now);osc.frequency.exponentialRampToValueAtTime(base*(w==='sniper'?.35:.46),now+(w==='sniper'?.135:.063));
+  gain.gain.setValueAtTime(.0001,now);gain.gain.exponentialRampToValueAtTime(w==='sniper'?.075:w==='tap'?.045:.021,now+.007);
+  gain.gain.exponentialRampToValueAtTime(.0001,now+(w==='sniper'?.18:.085));
+  osc.connect(gain).connect(soundCtx.destination);osc.start(now);osc.stop(now+(w==='sniper'?.19:.09));
+ }catch{ /* Blocked WebAudio must never stop combat input. */ }
+}
+
 
 const defaults={size:.83,side:.35,height:-.34,depth:-.56,sens:.21,fov:78};
 const settings={...defaults};
@@ -287,7 +326,8 @@ for(const x of [-HALF_X+.9,HALF_X-.9])for(const z of [-HALF_Z+.9,HALF_Z-.9]){
 for(let x=-23;x<=23;x+=7.6)for(const z of [-HALF_Z+.45,HALF_Z-.45])makeBox(x,3.18,z,.9,.1,.15,0x3fbaa9,.35,.4);
 
 const obstacles=[], pads=[], mapMeshes=[];
-function mapMesh(m){mapMeshes.push(m);return m}
+let buildingMapId=null;
+function mapMesh(m){m.userData.mapId=buildingMapId;mapMeshes.push(m);return m}
 function cover(x,z,w,d,h,color=0x3b556b,type='cover'){
  const obj=mapMesh(makeBox(x,h/2,z,w,h,d,color,.22,.55));
  obstacles.push({x,z,w,d,h,mesh:obj});
@@ -298,21 +338,24 @@ function cover(x,z,w,d,h,color=0x3b556b,type='cover'){
  }
  return obj;
 }
-function jumpPad(x,z){
+function jumpPad(x,z,w=3.6,d=3.6){
+ const scale=Math.min(w,d)/3.6;
  const base=new THREE.Mesh(new THREE.CylinderGeometry(1.8,1.92,.14,8),new THREE.MeshStandardMaterial({color:0x0a5661,metalness:.65,roughness:.22}));
- base.position.set(x,.095,z);scene.add(base);mapMesh(base);
- const ring=new THREE.Mesh(new THREE.TorusGeometry(1.3,.11,6,30),new THREE.MeshBasicMaterial({color:0x60efff,transparent:true,opacity:.85}));ring.position.set(x,.185,z);ring.rotation.x=-Math.PI/2;scene.add(ring);mapMesh(ring);
- const disk=new THREE.Mesh(new THREE.CylinderGeometry(.99,.99,.15,8),new THREE.MeshStandardMaterial({color:0x2aa7b7,emissive:0x09879c,emissiveIntensity:.55,metalness:.3}));disk.position.set(x,.17,z);scene.add(disk);mapMesh(disk);
- const arrow=new THREE.Mesh(new THREE.ConeGeometry(.48,.8,4),new THREE.MeshBasicMaterial({color:0xc5ffff}));arrow.position.set(x,.26,z);arrow.rotation.x=Math.PI/2;scene.add(arrow);mapMesh(arrow);
- pads.push({x,z,ring});
+ base.position.set(x,.095,z);base.scale.set(scale,1,scale);scene.add(base);mapMesh(base);
+ const ring=new THREE.Mesh(new THREE.TorusGeometry(1.3,.11,6,30),new THREE.MeshBasicMaterial({color:0x60efff,transparent:true,opacity:.85}));ring.position.set(x,.185,z);ring.rotation.x=-Math.PI/2;ring.scale.set(scale,scale,scale);scene.add(ring);mapMesh(ring);
+ const disk=new THREE.Mesh(new THREE.CylinderGeometry(.99,.99,.15,8),new THREE.MeshStandardMaterial({color:0x2aa7b7,emissive:0x09879c,emissiveIntensity:.55,metalness:.3}));disk.position.set(x,.17,z);disk.scale.set(scale,1,scale);scene.add(disk);mapMesh(disk);
+ const arrow=new THREE.Mesh(new THREE.ConeGeometry(.48,.8,4),new THREE.MeshBasicMaterial({color:0xc5ffff}));arrow.position.set(x,.26,z);arrow.rotation.x=Math.PI/2;arrow.scale.set(scale,1,scale);scene.add(arrow);mapMesh(arrow);
+ pads.push({x,z,ring,scale,radius:1.4*scale});
 }
 function rebuildArena(){
  for(const m of mapMeshes){scene.remove(m);m.geometry?.dispose();if(Array.isArray(m.material))m.material.forEach(v=>v.dispose());else m.material?.dispose()}
  mapMeshes.length=0;obstacles.length=0;pads.length=0;
  for(const o of activeMap.objects){
-  if(o.type==='pad')jumpPad(o.x,o.z);
+  buildingMapId=o.id;
+  if(o.type==='pad')jumpPad(o.x,o.z,o.w,o.d);
   else cover(o.x,o.z,o.w,o.d,o.h,new THREE.Color(o.color),o.type);
  }
+ buildingMapId=null;
 }
 function loadIntoArena(raw){activeMap=normalizeMap(raw);resetObjectId();rebuildArena();}
 rebuildArena();
@@ -331,13 +374,15 @@ const nameSprite=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.Canvas
 nameSprite.scale.set(2.6,.65,1);nameSprite.position.y=3.04;enemyMesh.add(nameSprite);
 const enemyVisual={x:p[op].x,z:p[op].z,y:p[op].y,yaw:p[op].yaw};
 
-// Short, articulated carbine / SMG instead of the old box-like "sausage".
+// Three lightweight low-poly weapon viewmodels, all made in Three.js without external assets.
 const gun=new THREE.Group();camera.add(gun);scene.add(camera);
+const trackGun=new THREE.Group(),tapGun=new THREE.Group(),sniperGun=new THREE.Group();
+gun.add(trackGun,tapGun,sniperGun);
 const gunSteel=new THREE.MeshStandardMaterial({color:0x263441,metalness:.68,roughness:.34});
 const gunShell=new THREE.MeshStandardMaterial({color:0x495c70,metalness:.58,roughness:.36});
 const gunBlack=new THREE.MeshStandardMaterial({color:0x131f2d,metalness:.56,roughness:.37});
 const gunGlow=new THREE.MeshStandardMaterial({color:0x45f4d6,metalness:.34,roughness:.32,emissive:0x22d5c0,emissiveIntensity:.65});
-function part(w,h,d,x,y,z,mat){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);m.position.set(x,y,z);gun.add(m);return m}
+function part(w,h,d,x,y,z,mat,group=trackGun){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);m.position.set(x,y,z);group.add(m);return m}
 part(.255,.20,.56,0,0,-.33,gunShell);              // receiver
 part(.235,.11,.27,0,.115,-.25,gunSteel);            // rear upper housing
 part(.21,.12,.36,0,-.015,-.64,gunSteel);            // handguard
@@ -352,11 +397,25 @@ part(.15,.08,.085,0,.19,-.28,gunGlow);             // compact optic
 part(.23,.038,.27,0,.037,-.64,gunGlow);            // accent side
 part(.045,.045,.28,.137,.02,-.35,gunGlow);          // right-side power line
 part(.045,.045,.23,-.137,.02,-.40,gunGlow);
-const muzzleFlash=new THREE.Mesh(new THREE.SphereGeometry(.14,8,6),new THREE.MeshBasicMaterial({color:0x89fff2,transparent:true,opacity:.9}));muzzleFlash.position.set(0,0,-1.005);gun.add(muzzleFlash);muzzleFlash.visible=false;
+// Small handgun / semi-auto tapper.
+part(.25,.21,.39,0,0,-.27,gunShell,tapGun);part(.23,.1,.38,0,.105,-.31,gunSteel,tapGun);
+part(.17,.24,.14,0,-.2,-.15,gunBlack,tapGun);part(.13,.12,.18,0,-.015,-.57,gunBlack,tapGun);
+part(.05,.09,.045,0,.18,-.50,gunGlow,tapGun);part(.14,.055,.07,0,.14,-.08,gunSteel,tapGun);
+part(.02,.05,.23,.135,.025,-.28,gunGlow,tapGun);
+// Slim futuristic sniper with short low-poly scope, scope rings and extended stock.
+part(.24,.2,.78,0,0,-.48,gunShell,sniperGun);part(.15,.11,.9,0,.015,-1.24,gunSteel,sniperGun);
+part(.23,.16,.18,0,.006,-1.72,gunBlack,sniperGun);part(.11,.08,.13,0,.01,-1.82,gunGlow,sniperGun);
+part(.16,.27,.17,0,-.235,-.25,gunBlack,sniperGun);part(.23,.13,.43,0,-.01,.18,gunSteel,sniperGun);
+part(.22,.19,.15,0,.08,.39,gunBlack,sniperGun);part(.065,.11,.33,0,.225,-.39,gunSteel,sniperGun);
+const scope=new THREE.Mesh(new THREE.CylinderGeometry(.14,.14,.43,10),gunBlack);scope.rotation.x=Math.PI/2;scope.position.set(0,.29,-.48);sniperGun.add(scope);
+for(const z of [-.7,-.26])part(.17,.08,.05,0,.31,z,gunGlow,sniperGun);
+part(.025,.035,.65,.14,.035,-1.05,gunGlow,sniperGun);
+const muzzleFlash=new THREE.Mesh(new THREE.SphereGeometry(.1,8,6),new THREE.MeshBasicMaterial({color:0xb8fff0,transparent:true,opacity:.65}));muzzleFlash.position.set(0,0,-1.005);gun.add(muzzleFlash);muzzleFlash.visible=false;
 
-const beam=new THREE.Mesh(new THREE.CylinderGeometry(.012,.012,1,6),new THREE.MeshBasicMaterial({color:0x8affdf,transparent:true,opacity:.65,depthWrite:false}));scene.add(beam);beam.visible=false;
+const beam=new THREE.Mesh(new THREE.CylinderGeometry(.006,.006,1,5),new THREE.MeshBasicMaterial({color:0xa1fbea,transparent:true,opacity:.14,depthWrite:false,blending:THREE.AdditiveBlending}));scene.add(beam);beam.visible=false;
+const remoteBeam=new THREE.Mesh(new THREE.CylinderGeometry(.005,.005,1,5),new THREE.MeshBasicMaterial({color:0xffbbc9,transparent:true,opacity:.1,depthWrite:false,blending:THREE.AdditiveBlending}));scene.add(remoteBeam);remoteBeam.visible=false;
 const beamUp=new THREE.Vector3(0,1,0);
-let bob=0,lastBeam=0,visualRecoil=0;
+let bob=0,visualRecoil=0;
 
 function safeSend(o){if(conn?.open)try{conn.send(o)}catch{}}
 function alertMsg(s){status.textContent=s}
@@ -367,7 +426,7 @@ function openSettings(){if(!started||ended)return;settingsOpen=true;mouseDown=fa
 function toggleSettings(){if(settingsOpen){hideSettings();tryLock()}else openSettings()}
 function refreshUnlock(){locked=document.pointerLockElement===renderer.domElement;$('unlock').classList.toggle('on',started&&!ended&&!locked&&!settingsOpen)}
 function tryLock(){if(started&&!ended&&!settingsOpen)renderer.domElement.requestPointerLock?.().catch(()=>{})}
-function resetPose(){p=spawn();hp=[100,100];lastHp=100;roundLock=performance.now()+1250;transition=0;mouseDown=false;for(const k in keys)keys[k]=false;
+function resetPose(){p=spawn();p[me].weapon=activeWeapon;hp=[100,100];lastHp=100;roundLock=performance.now()+1250;transition=0;mouseDown=false;aiming=false;nextFireAt=0;acceptedShots[0]=acceptedShots[1]=-100000;nextAcceptedShot[0]=nextAcceptedShot[1]=0;for(const k in keys)keys[k]=false;
  enemyVisual.x=p[op].x;enemyVisual.y=p[op].y;enemyVisual.z=p[op].z;enemyVisual.yaw=p[op].yaw;refreshHud();}
 function refreshHud(){
  $('myhp').textContent=Math.ceil(hp[me])+' HP';$('enemyhp').textContent=Math.ceil(hp[op])+' HP';
@@ -377,19 +436,19 @@ function refreshHud(){
 function begin(which){
  role=which;me=which==='guest'?1:0;op=1-me;bot=which==='bot';started=true;ended=false;
  overlay.classList.add('hidden');hud.classList.add('on');$('oppName').textContent=bot?'БОТ':'СОПЕРНИК';
- $('mode').textContent=(bot?'TRACK DUEL 3.0 / BOT':'TRACK DUEL 3.0 / ONLINE 1V1')+' · '+activeMap.name.slice(0,22);$('conn').textContent=bot?'LOCAL':'ONLINE';
+ $('mode').textContent=(bot?'TRACK DUEL 4.0 / BOT':'TRACK DUEL 4.0 / ONLINE 1V1')+' · '+activeMap.name.slice(0,22);$('conn').textContent=bot?'LOCAL':'ONLINE';
  $('endControls').style.display='none';$('again').style.display='';hideSettings();
- round=1;myScore=0;oppScore=0;myRematch=otherRematch=false;resetPose();center.textContent='КЛИКНИ ДЛЯ ИГРЫ';refreshUnlock();tryLock();
+ round=1;myScore=0;oppScore=0;myRematch=otherRematch=false;resetPose();updateWeaponHud();center.textContent='КЛИКНИ ДЛЯ ИГРЫ';refreshUnlock();tryLock();
 }
 function home(){
  cleanup();started=false;ended=false;role='none';bot=false;mouseDown=false;hideSettings();document.exitPointerLock?.();
- overlay.classList.remove('hidden');hud.classList.remove('on');$('mainActions').classList.remove('hide');$('hostWait').classList.add('hide');
+ overlay.classList.remove('hidden');hud.classList.remove('on');aiming=false;beam.visible=false;remoteBeam.visible=false;$('mainActions').classList.remove('hide');$('hostWait').classList.add('hide');
  loadIntoArena(loadMap());alertMsg('');
 }
 $('host').onclick=()=>{
  if(!window.Peer){alertMsg('PeerJS не загрузился. Проверь интернет и обнови страницу.');return}
  cleanup();alertMsg('Подключаемся к серверу комнат…');const code=roomId();
- peer=new Peer('trackduel3-'+code.toLowerCase());
+ peer=new Peer('trackduel4-'+code.toLowerCase());
  peer.on('open',()=>{$('mainActions').classList.add('hide');$('hostWait').classList.remove('hide');$('roomCode').textContent=code;alertMsg('Ожидаем друга…')});
  peer.on('connection',c=>{if(conn){c.close();return}conn=c;bindConnection()});
  peer.on('error',e=>{if(e.type==='unavailable-id'){cleanup();$('host').click();return}alertMsg('Ошибка соединения: '+e.type)});
@@ -399,13 +458,13 @@ $('join').onclick=()=>{
  if(!/^[abcdefghjklmnpqrstuvwxyz23456789]{6}$/.test(code)){alertMsg('Введи шестизначный код комнаты.');return}
  if(!window.Peer){alertMsg('PeerJS не загрузился. Проверь интернет.');return}
  cleanup();alertMsg('Подключаемся к комнате '+code.toUpperCase()+'…');
- peer=new Peer();peer.on('open',()=>{conn=peer.connect('trackduel3-'+code,{reliable:false});bindConnection()});
+ peer=new Peer();peer.on('open',()=>{conn=peer.connect('trackduel4-'+code,{reliable:true});bindConnection()});
  peer.on('error',e=>alertMsg('Не удалось подключиться: '+e.type));
 };
 function bindConnection(){
  conn.on('open',()=>{
    alertMsg('Соединение установлено!');
-   if(peer?.id?.startsWith('trackduel3-')){begin('host');safeSend({t:'start',map:activeMap})}
+   if(peer?.id?.startsWith('trackduel4-')){begin('host');safeSend({t:'start',map:activeMap})}
    else alertMsg('Соединение есть. Получаем карту от создателя…');
  });
  conn.on('data',handleData);
@@ -424,7 +483,7 @@ function handleData(d){
  if(!d||typeof d!=='object')return;
  if(d.t==='pose'&&started&&!ended){
    const q=p[op];for(const k of ['x','z','y','yaw','pitch'])if(Number.isFinite(d[k]))q[k]=d[k];
-   q.fire=!!d.fire;lastEnemyPose=performance.now();
+   q.fire=!!d.fire&&d.weapon==='track';if(WEAPONS[d.weapon])q.weapon=d.weapon;lastEnemyPose=performance.now();
  }
  if(d.t==='sync'&&role==='guest'&&started){
    if(!Array.isArray(d.hp)||!Array.isArray(d.score))return;
@@ -434,6 +493,10 @@ function handleData(d){
    if(d.winner!==undefined&&d.winner!==null)finishRound(d.winner,d.match);
    if(lastHp>hp[me]+.3){lastHitFx=performance.now()}lastHp=hp[me];refreshHud();
  }
+ if(d.t==='shot'&&role==='host'&&started&&!ended&&d.weapon!=='track'&&WEAPONS[d.weapon]){
+    if(d.weapon===p[op].weapon&&performance.now()-lastEnemyPose<1300){acceptDiscreteShot(op,d.weapon);remoteFlashUntil=performance.now()+95;}
+ }
+ if(d.t==='shotfx'&&role==='guest'&&started){remoteFlashUntil=performance.now()+95;}
  if(d.t==='rematch'){otherRematch=true;if(myRematch&&role==='host')startRematch()}
  if(d.t==='start'&&!started&&role==='none'){
     if(d.map){try{loadIntoArena(d.map)}catch(e){alertMsg('Карта повреждена: '+e.message);return}}
@@ -461,16 +524,50 @@ function rayCoverDistance(origin,dir,c,maxDist){
  }
  return tMin>0&&tMin<maxDist?tMin:Infinity;
 }
-function shotDistance(shooter,target){
+function shotHit(shooter,target){
  const origin=new THREE.Vector3(shooter.x,EYE_HEIGHT+shooter.y,shooter.z),dir=facing(shooter);
- let dist=Infinity;
- for(const [height,r] of [[.85,.52],[1.24,.58],[1.65,.50],[2.22,.315]]){
+ let dist=Infinity,head=false;
+ for(const [height,r,isHead] of [[.85,.52,false],[1.24,.58,false],[1.65,.50,false],[2.22,.315,true]]){
    const t=raySphere(origin,dir,{x:target.x,y:target.y+height,z:target.z},r);
-   if(t<dist)dist=t;
+   if(t<dist){dist=t;head=isHead;}
  }
- if(dist>62)return Infinity;
- for(const c of obstacles)if(Number.isFinite(rayCoverDistance(origin,dir,c,dist)))return Infinity;
- return dist;
+ if(dist>62)return {distance:Infinity,head:false};
+ for(const c of obstacles)if(Number.isFinite(rayCoverDistance(origin,dir,c,dist)))return {distance:Infinity,head:false};
+ return {distance:dist,head};
+}
+function shotDistance(shooter,target){return shotHit(shooter,target).distance;}
+function checkRoundOver(){
+ if(transition||ended||!started||!(bot||role==='host'))return;
+ if(hp[0]<=0||hp[1]<=0){
+   const winner=hp[0]<=0?1:0;
+   if(winner===me)myScore++;else oppScore++;
+   const match=myScore>=5||oppScore>=5;
+   finishRound(winner,match);
+   if(role==='host')safeSend({t:'sync',hp,score:[myScore,oppScore],round,winner,match});
+ }
+}
+function acceptDiscreteShot(i,w){
+ if(!started||ended||transition||performance.now()<roundLock||!WEAPONS[w]?.damage)return false;
+ if(!(bot||role==='host'))return false;
+ const now=performance.now(),config=WEAPONS[w];
+ if(now<nextAcceptedShot[i])return false;
+ acceptedShots[i]=now;nextAcceptedShot[i]=now+config.cooldown-30;
+ const hit=shotHit(p[i],p[1-i]);
+ if(hit.distance<Infinity){const damage=hit.head?(w==='sniper'?100:18):config.damage;
+   hp[1-i]=Math.max(0,hp[1-i]-damage);if(i!==me)lastHitFx=now;}
+ checkRoundOver();return true;
+}
+function tryFireDiscrete(){
+ if(!started||ended||transition||!locked||settingsOpen||editorOpen||performance.now()<roundLock)return;
+ const w=activeWeapon;if(w==='track')return;
+ const now=performance.now(),config=WEAPONS[w];if(now<nextFireAt)return;
+ nextFireAt=now+config.cooldown;fireFlashUntil=now+105;shotTrailUntil=now+175;
+ playShotSound(w);visualRecoil=Math.max(visualRecoil,w==='sniper'?.13:.055);
+ if(role==='guest'){
+   const q=p[me];safeSend({t:'pose',x:q.x,z:q.z,y:q.y,yaw:q.yaw,pitch:q.pitch,fire:false,weapon:w});
+   safeSend({t:'shot',weapon:w});
+ }else acceptDiscreteShot(me,w);
+ if(role==='host')safeSend({t:'shotfx',weapon:w});
 }
 function finishRound(winner,match){
  if(transition||!started)return;
@@ -488,13 +585,7 @@ function resolveDamage(dt){
      if(i!==me)lastHitFx=performance.now();
    }
  }
- if(hp[0]<=0||hp[1]<=0){
-   const winner=hp[0]<=0?1:0;
-   if(winner===me)myScore++;else oppScore++;
-   const match=myScore>=5||oppScore>=5;
-   finishRound(winner,match);
-   if(role==='host')safeSend({t:'sync',hp,score:[myScore,oppScore],round,winner,match});
- }
+ checkRoundOver();
 }
 function groundAt(x,z,oldY,vy){
  let top=0;
@@ -529,7 +620,7 @@ function applyGravity(q,dt){
  q.padCooldown=Math.max(0,(q.padCooldown||0)-dt);
  for(const pad of pads){
    const d2=(pad.x-q.x)**2+(pad.z-q.z)**2;
-   if(d2<1.4*1.4&&q.y<=.75&&q.padCooldown===0){
+   if(d2<pad.radius*pad.radius&&q.y<=.75&&q.padCooldown===0){
      q.y=Math.max(q.y,.2);q.vy=12.6;q.padCooldown=1.0;
      if(q===p[me])padFxUntil=performance.now()+800;
    }
@@ -545,7 +636,7 @@ function tickBot(dt,time){
  const aim=Math.atan2(-(t.x-q.x),-(t.z-q.z)),err=Math.atan2(Math.sin(aim-q.yaw),Math.cos(aim-q.yaw));
  q.yaw+=THREE.MathUtils.clamp(err,-dt*.92,dt*.92);
  q.pitch=THREE.MathUtils.clamp(Math.atan2((EYE_HEIGHT+q.y)-(1.22+t.y),Math.hypot(t.x-q.x,t.z-q.z)) * -1,-.65,.65);
- q.fire=Math.sin(time*.00145)>-.23&&Math.abs(err)<.27;
+ q.fire=Math.sin(time*.00145)>-.23&&Math.abs(err)<.27;q.weapon='track';
 }
 function moveLocal(dt,time){
  const q=p[me];let f=0,r=0;
@@ -560,22 +651,27 @@ function moveLocal(dt,time){
    if(keys.Space&&q.vy===0&&q.y<=floor+.005){q.vy=7.6;}
  }
  applyGravity(q,dt);
- q.fire=mouseDown&&locked&&!settingsOpen&&!ended&&!transition&&time>=roundLock;
+ q.weapon=activeWeapon;q.fire=activeWeapon==='track'&&mouseDown&&locked&&!settingsOpen&&!ended&&!transition&&time>=roundLock;
  camera.position.set(q.x,EYE_HEIGHT+q.y,q.z);
  camera.rotation.set(q.pitch,q.yaw,0,'YXZ');
  const isMoving=Math.abs(f)+Math.abs(r)>0;
  if(isMoving&&q.y<.02)bob+=dt*(keys.ShiftLeft?14:10);
  else bob*=Math.max(0,1-dt*6);
+ if(q.fire&&time-lastTrackSound>95){lastTrackSound=time;playShotSound('track');fireFlashUntil=time+42;}
  visualRecoil=THREE.MathUtils.damp(visualRecoil,q.fire?.038:0,18,dt);
- gun.scale.setScalar(settings.size);
+ trackGun.visible=activeWeapon==='track';tapGun.visible=activeWeapon==='tap';sniperGun.visible=activeWeapon==='sniper';
+ camera.fov=THREE.MathUtils.damp(camera.fov,aiming?(activeWeapon==='sniper'?32:activeWeapon==='tap'?63:68):settings.fov,14,dt);camera.updateProjectionMatrix();
+ gun.scale.setScalar(settings.size*(aiming?.91:1));
  gun.position.set(settings.side+Math.sin(bob)*.005,settings.height+Math.abs(Math.sin(bob))*.006,settings.depth);
  gun.rotation.set(-visualRecoil,Math.sin(bob)*.005,-Math.sin(bob)*.008);
- muzzleFlash.visible=q.fire&&Math.sin(time*.065)>0;
+ muzzleFlash.position.z=activeWeapon==='sniper'?-1.87:activeWeapon==='tap'?-.67:-1.005;
+ muzzleFlash.visible=time<fireFlashUntil;
+ $('gunToast').textContent=time<weaponToastUntil?WEAPONS[activeWeapon].label:'';
 }
 function sendPose(dt){
  if(!conn?.open||!started)return;
  sendAcc+=dt;syncAcc+=dt;
- if(sendAcc>=1/30){sendAcc=0;const q=p[me];safeSend({t:'pose',x:q.x,z:q.z,y:q.y,yaw:q.yaw,pitch:q.pitch,fire:q.fire});}
+ if(sendAcc>=1/30){sendAcc=0;const q=p[me];safeSend({t:'pose',x:q.x,z:q.z,y:q.y,yaw:q.yaw,pitch:q.pitch,fire:q.fire,weapon:activeWeapon});}
  if(role==='host'&&syncAcc>=1/18){syncAcc=0;safeSend({t:'sync',hp,score:[myScore,oppScore],round});}
 }
 function updateVisual(dt,time){
@@ -589,19 +685,30 @@ function updateVisual(dt,time){
  enemyVisual.yaw+=deltaYaw*factor;
  enemyMesh.position.set(enemyVisual.x,enemyVisual.y,enemyVisual.z);
  enemyMesh.rotation.y=enemyVisual.yaw;enemyMesh.visible=started&&hp[op]>0;
- if(mine.fire){
+ const beamLive=mine.fire||time<shotTrailUntil;
+ if(beamLive){
    const origin=new THREE.Vector3(mine.x,EYE_HEIGHT+mine.y,mine.z),dir=facing(mine),distance=shotDistance(mine,q);
    let length=Number.isFinite(distance)?distance:55;
    for(const c of obstacles)length=Math.min(length,rayCoverDistance(origin,dir,c,length));
    const end=origin.clone().addScaledVector(dir,length),diff=end.clone().sub(origin);
    beam.position.copy(origin).addScaledVector(diff,.5);beam.quaternion.setFromUnitVectors(beamUp,diff.clone().normalize());
-   beam.scale.set(1,diff.length(),1);beam.visible=true;lastBeam=time+30;
- }else if(time>lastBeam)beam.visible=false;
+   beam.scale.set(1,Math.max(.01,diff.length()),1);beam.visible=true;
+   beam.material.opacity=mine.fire?.115:Math.max(0,.17*(shotTrailUntil-time)/175);
+ }else beam.visible=false;
+ if(q.fire||time<remoteFlashUntil){
+   const origin=new THREE.Vector3(q.x,EYE_HEIGHT+q.y,q.z),dir=facing(q);
+   let length=55;for(const c of obstacles)length=Math.min(length,rayCoverDistance(origin,dir,c,length));
+   const diff=dir.clone().multiplyScalar(length);
+   remoteBeam.position.copy(origin).addScaledVector(diff,.5);
+   remoteBeam.quaternion.setFromUnitVectors(beamUp,dir);
+   remoteBeam.scale.set(1,length,1);remoteBeam.visible=true;
+   remoteBeam.material.opacity=q.fire?.08:Math.max(0,.11*(remoteFlashUntil-time)/95);
+ }else remoteBeam.visible=false;
  const hit=mine.fire&&shotDistance(mine,q)!==Infinity&&time>=roundLock;
  $('cross').classList.toggle('hit',hit);$('dps').textContent=hit?'34 DPS':'';
  $('damage').classList.toggle('pain',time-lastHitFx<180);
  $('padTip').textContent=time<padFxUntil?'JUMP PAD × BOOST':'';
- pads.forEach((pad,i)=>{pad.ring.material.opacity=.8+.2*Math.sin(time*.003+i);pad.ring.scale.setScalar(1+.07*Math.sin(time*.004+i));});
+ pads.forEach((pad,i)=>{pad.ring.material.opacity=.8+.2*Math.sin(time*.003+i);pad.ring.scale.setScalar(pad.scale*(1+.07*Math.sin(time*.004+i)));});
 }
 function animate(time){
  requestAnimationFrame(animate);
@@ -617,11 +724,125 @@ function animate(time){
    if(!transition&&!settingsOpen)center.textContent=time<roundLock?'ГОТОВЬСЯ':'';
    updateVisual(dt,time);refreshHud();
  }
- renderer.render(scene,camera);
+ if(editorOpen&&editorView==='3d'){syncEditor3D();renderer.render(scene,editorCamera);}
+ else renderer.render(scene,camera);
 }
 
-// -------- In-game top-down Map Creator --------
+// -------- Map Creator with interactive 3D and top-down 2D views --------
 const ed=$('mapEditor'),edCanvas=$('editorCanvas'),ctx=edCanvas.getContext('2d');
+// The FPS and the 3D workshop deliberately share one WebGL context and scene.
+// This avoids duplicate memory use and shows the exact geometry used in a match.
+const editor3D=$('editor3D'),editorCamera=new THREE.PerspectiveCamera(58,1,.1,180);
+const editorRay=new THREE.Raycaster(),editorFloorPlane=new THREE.Plane(new THREE.Vector3(0,1,0),0);
+const editorCameraTarget=new THREE.Vector3(0,1,0);
+let editorView='3d',orbitTheta=.75,orbitPhi=.75,orbitRadius=70,editorDrag3d=null,editorHover3d=null;
+function updateOrbitCamera(){
+ editorCamera.position.set(editorCameraTarget.x+orbitRadius*Math.sin(orbitPhi)*Math.sin(orbitTheta),
+ editorCameraTarget.y+orbitRadius*Math.cos(orbitPhi),
+ editorCameraTarget.z+orbitRadius*Math.sin(orbitPhi)*Math.cos(orbitTheta));
+ editorCamera.lookAt(editorCameraTarget);
+}
+updateOrbitCamera();
+const spawnMarkers=activeMap.spawns.map((s,i)=>{
+ const root=new THREE.Group(),col=i?0xff7297:0x6df8c8;
+ const stand=new THREE.Mesh(new THREE.CylinderGeometry(.6,.7,.13,8),new THREE.MeshBasicMaterial({color:col}));stand.position.y=.09;stand.userData.spawnIndex=i;root.add(stand);
+ const diamond=new THREE.Mesh(new THREE.OctahedronGeometry(.55),new THREE.MeshBasicMaterial({color:col,wireframe:true}));diamond.position.y=1.2;diamond.userData.spawnIndex=i;root.add(diamond);
+ scene.add(root);root.visible=false;return root;
+});
+const previewGhost=new THREE.Mesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshBasicMaterial({color:0x7afee0,transparent:true,opacity:.25,depthWrite:false,wireframe:true}));previewGhost.visible=false;scene.add(previewGhost);
+const editorOutline=new THREE.BoxHelper(previewGhost,0xffef9d);editorOutline.visible=false;scene.add(editorOutline);
+function editorMeshForSelection(){
+ if(selected?.kind==='object')return mapMeshes.find(m=>m.userData.mapId===selected.id) || null;
+ if(selected?.kind==='spawn')return spawnMarkers[selected.index]||null;
+ return null;
+}
+function syncEditor3D(){
+ const enabled=editorOpen&&editorView==='3d';
+ spawnMarkers.forEach((m,i)=>{m.visible=enabled;m.position.set(activeMap.spawns[i].x,0,activeMap.spawns[i].z)});
+ const target=enabled?editorMeshForSelection():null;
+ editorOutline.visible=!!target;
+ if(target)editorOutline.setFromObject(target);
+ if(!enabled||tool==='select'||!editorHover3d){previewGhost.visible=false;return}
+ if(tool.startsWith('spawn')){previewGhost.visible=false;return}
+ const dims=MAP_DIMS[tool];if(!dims){previewGhost.visible=false;return}
+ previewGhost.visible=true;previewGhost.position.set(snapCoord(editorHover3d.x),dims[2]/2,snapCoord(editorHover3d.z));previewGhost.scale.set(...[dims[0],dims[2],dims[1]]);
+}
+function editor3DRay(event){
+ const r=renderer.domElement.getBoundingClientRect();
+ if(!r.width||!r.height)return null;
+ editorRay.setFromCamera(new THREE.Vector2(((event.clientX-r.left)/r.width)*2-1,-((event.clientY-r.top)/r.height)*2+1),editorCamera);
+ const ground=new THREE.Vector3();if(!editorRay.ray.intersectPlane(editorFloorPlane,ground))return null;
+ return {x:ground.x,z:ground.z};
+}
+function editor3DPick(){
+ const selectable=[...mapMeshes];for(const m of spawnMarkers)selectable.push(...m.children);
+ for(const hit of editorRay.intersectObjects(selectable,false)){
+  if(Number.isInteger(hit.object.userData.spawnIndex))return {kind:'spawn',index:hit.object.userData.spawnIndex};
+  if(Number.isInteger(hit.object.userData.mapId))return {kind:'object',id:hit.object.userData.mapId};
+ }
+ return null;
+}
+function moveSelectionMeshes(deltaX,deltaZ){
+ if(selected?.kind==='object')for(const mesh of mapMeshes){if(mesh.userData.mapId===selected.id){mesh.position.x+=deltaX;mesh.position.z+=deltaZ}}
+}
+function editor3DDown(e){
+ if(!editorOpen||editorView!=='3d'||(e.button!==0&&e.button!==2))return;
+ e.preventDefault();
+ const pos=editor3DRay(e);if(!pos)return;editorHover3d=pos;
+ if(e.button===2){editorDrag3d={type:'orbit',lastX:e.clientX,lastY:e.clientY};renderer.domElement.setPointerCapture?.(e.pointerId);return}
+ if(tool==='select'){
+  selected=editor3DPick();updateProperties();
+  if(selected){const obj=getSelected();saveUndo();editorDrag3d={type:'move',start:pos,fromX:obj.x,fromZ:obj.z,moved:false};renderer.domElement.setPointerCapture?.(e.pointerId)}
+  else editorDrag3d=null;
+ }else if(tool.startsWith('spawn')){
+  const i=Number(tool.slice(-1));saveUndo();selected={kind:'spawn',index:i};assignPos(activeMap.spawns[i],pos.x,pos.z);updateProperties();edMsg('Точка появления перемещена в 3D.');
+ }else placeObject(tool,pos.x,pos.z);
+ syncEditor3D();
+}
+function editor3DMove(e){
+ if(!editorOpen||editorView!=='3d')return;
+ if(editorDrag3d?.type==='orbit'){
+  const dx=e.clientX-editorDrag3d.lastX,dy=e.clientY-editorDrag3d.lastY;
+  orbitTheta-=dx*.006;orbitPhi=THREE.MathUtils.clamp(orbitPhi+dy*.006,.18,1.48);
+  editorDrag3d.lastX=e.clientX;editorDrag3d.lastY=e.clientY;updateOrbitCamera();return;
+ }
+ const pos=editor3DRay(e);if(!pos)return;editorHover3d=pos;
+ if(editorDrag3d?.type==='move'&&selected){
+  const obj=getSelected();if(!obj)return;
+  const wasX=obj.x,wasZ=obj.z;
+  assignPos(obj,editorDrag3d.fromX+pos.x-editorDrag3d.start.x,editorDrag3d.fromZ+pos.z-editorDrag3d.start.z);
+  moveSelectionMeshes(obj.x-wasX,obj.z-wasZ);
+  editorDrag3d.moved=editorDrag3d.moved||Math.abs(obj.x-editorDrag3d.fromX)+Math.abs(obj.z-editorDrag3d.fromZ)>.01;
+  updateProperties();
+ }
+ syncEditor3D();
+}
+function editor3DUp(){
+ if(editorDrag3d?.type==='move'&&editorDrag3d.moved){rebuildArena();updateProperties();edMsg('Позиция изменена. Сохрани карту перед выходом.');}
+ editorDrag3d=null;
+}
+function resizeRendererForView(){
+ if(editorOpen&&editorView==='3d'){
+  const w=Math.max(100,editor3D.clientWidth),h=Math.max(100,editor3D.clientHeight);
+  renderer.setSize(w,h);editorCamera.aspect=w/h;editorCamera.updateProjectionMatrix();
+ }else{renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix()}
+}
+function switchEditorView(view){
+ editorView=view;
+ $('view3D').classList.toggle('activeView',view==='3d');$('view2D').classList.toggle('activeView',view==='2d');
+ edCanvas.classList.toggle('hide',view!=='2d');editor3D.classList.toggle('hide',view!=='3d');
+ (view==='3d'?editor3D:$('game')).appendChild(renderer.domElement);
+ resizeRendererForView();syncEditor3D();
+ edMsg(view==='3d'?'3D режим: ЛКМ выбери/перетащи объект, ПКМ поворачивай камеру, колесо — зум.':'2D режим: работа с картой сверху.');
+}
+$('view3D').onclick=()=>switchEditorView('3d');$('view2D').onclick=()=>switchEditorView('2d');
+new ResizeObserver(()=>{if(editorOpen&&editorView==='3d')resizeRendererForView()}).observe(editor3D);
+renderer.domElement.addEventListener('pointerdown',editor3DDown);
+renderer.domElement.addEventListener('pointermove',editor3DMove);
+renderer.domElement.addEventListener('pointerup',editor3DUp);
+renderer.domElement.addEventListener('pointercancel',editor3DUp);
+renderer.domElement.addEventListener('wheel',e=>{if(!editorOpen||editorView!=='3d')return;e.preventDefault();orbitRadius=THREE.MathUtils.clamp(orbitRadius*Math.exp(e.deltaY*.0011),18,135);updateOrbitCamera()},{passive:false});
+
 const PX=20, TOOL_NAMES={select:'Выделение',wall:'Стена',cover:'Укрытие',low:'Низкий блок',pillar:'Колонна',platform:'Платформа',pad:'Джамп-пад',spawn0:'Игрок 1',spawn1:'Игрок 2'};
 let editorOpen=false,tool='select',selected=null,drag=null,hover=null,history=[],redo=[],mapDirty=false;
 const snapCoord=n=>$('gridSnap').checked?Math.round(n*2)/2:Math.round(n*10)/10;
@@ -653,8 +874,8 @@ function saveCurrentMap(){
  try{localStorage.setItem('trackduel-map-v3',editorSnapshot());mapDirty=false;edMsg('✓ Карта сохранена в браузере. Можно играть или скачать JSON.');return true}
  catch(e){edMsg('⚠ Браузер не разрешил сохранение. Скачай JSON, чтобы не потерять карту.');return false}
 }
-function openEditor(){if(started)return;editorOpen=true;ed.classList.remove('hide');$('mapName').value=activeMap.name;selected=null;history=[];redo=[];mapDirty=false;selectTool('select');updateProperties();drawEditor()}
-function closeEditor(){if(!saveCurrentMap())return false;editorOpen=false;ed.classList.add('hide');selected=null;rebuildArena();return true}
+function openEditor(){if(started)return;editorOpen=true;ed.classList.remove('hide');$('mapName').value=activeMap.name;selected=null;history=[];redo=[];mapDirty=false;selectTool('select');updateProperties();switchEditorView('3d');drawEditor()}
+function closeEditor(){if(!saveCurrentMap())return false;editorOpen=false;selected=null;editorDrag3d=null;syncEditor3D();ed.classList.add('hide');$('game').appendChild(renderer.domElement);resizeRendererForView();rebuildArena();return true}
 $('openEditor').onclick=openEditor;$('mapDone').onclick=closeEditor;$('mapSave').onclick=saveCurrentMap;
 $('mapTest').onclick=()=>{if(closeEditor())begin('bot')};
 $('mapName').addEventListener('change',()=>{saveUndo();activeMap.name=($('mapName').value.trim()||'Моя арена').slice(0,36)});
@@ -705,6 +926,17 @@ $('presetMirrored').onclick=()=>setPreset({version:1,name:'Симметричн�
  {type:'cover',x:-10,z:10,w:3.5,d:3.5,h:1.5},{type:'cover',x:10,z:10,w:3.5,d:3.5,h:1.5},
  {type:'low',x:0,z:0,w:4,d:4,h:.9},{type:'pillar',x:-20,z:-14},{type:'pillar',x:20,z:14},
  {type:'pad',x:-18,z:12},{type:'pad',x:18,z:-12} ]});
+$('presetParkour').onclick=()=>setPreset({version:1,name:'Джамп-паркур',spawns:[{x:-21,z:0},{x:21,z:0}],objects:[
+ {type:'platform',x:-13,z:0,w:5,d:5,h:2.4,color:'#457b86'},
+ {type:'platform',x:0,z:-8,w:6,d:6,h:4,color:'#3c5d88'},
+ {type:'platform',x:0,z:8,w:6,d:6,h:4,color:'#3c5d88'},
+ {type:'platform',x:13,z:0,w:5,d:5,h:2.4,color:'#457b86'},
+ {type:'cover',x:0,z:0,w:3,d:3,h:1.8,color:'#47677c'},
+ {type:'pad',x:-19,z:-12},{type:'pad',x:-19,z:12},
+ {type:'pad',x:19,z:-12},{type:'pad',x:19,z:12},
+ {type:'low',x:-7,z:-13,w:4,d:2.5,h:1.1},
+ {type:'low',x:7,z:13,w:4,d:2.5,h:1.1}
+ ]});
 $('mapExport').onclick=()=>{
  activeMap.name=($('mapName').value.trim()||'Моя арена').slice(0,36);
  const blob=new Blob([JSON.stringify(activeMap,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob);
@@ -743,7 +975,7 @@ function drawEditor(){
   ctx.globalAlpha=.4;ctx.strokeStyle='#9cffe9';ctx.setLineDash([6,6]);const [w,d]=MAP_DIMS[tool];ctx.strokeRect(mapX(snapCoord(hover.x))-w*PX/2,mapZ(snapCoord(hover.z))-d*PX/2,w*PX,d*PX);ctx.setLineDash([]);ctx.globalAlpha=1;
  }
 }
-function drawEditorLoop(){requestAnimationFrame(drawEditorLoop);if(editorOpen)drawEditor()}
+function drawEditorLoop(){requestAnimationFrame(drawEditorLoop);if(editorOpen&&editorView==='2d')drawEditor()}
 requestAnimationFrame(drawEditorLoop);
 document.addEventListener('keydown',e=>{
  if(!editorOpen)return;
@@ -757,9 +989,11 @@ document.addEventListener('keydown',e=>{
 });
 
 requestAnimationFrame(animate);
-window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+window.addEventListener('resize',resizeRendererForView);
 document.addEventListener('keydown',e=>{
  if(editorOpen)return;
+ if(['Digit1','Digit2','Digit3'].includes(e.code)&&!e.repeat&&started&&!settingsOpen){selectWeapon({Digit1:'track',Digit2:'tap',Digit3:'sniper'}[e.code]);return}
+ if(e.code==='KeyM'&&!e.repeat){toggleSound();return}
  if(e.code==='KeyV'&&!e.repeat&&started&&!ended){toggleSettings();e.preventDefault();return}
  if(settingsOpen)return;
  keys[e.code]=true;
@@ -771,12 +1005,16 @@ document.addEventListener('mousemove',e=>{
  // Pointer-lock events can occasionally contain huge OS/browser jumps; discard those spikes.
  if(!Number.isFinite(e.movementX)||!Number.isFinite(e.movementY))return;
  if(Math.abs(e.movementX)>125||Math.abs(e.movementY)>125)return;
- const q=p[me],s=settings.sens/100;
+ const q=p[me],s=settings.sens/100*(aiming&&activeWeapon==='sniper'?.42:1);
  q.yaw-=e.movementX*s;
  q.pitch=THREE.MathUtils.clamp(q.pitch-e.movementY*s,-1.3,1.3);
 });
-document.addEventListener('mousedown',e=>{if(e.button===0&&locked&&!settingsOpen&&!editorOpen)mouseDown=true});
-document.addEventListener('mouseup',e=>{if(e.button===0)mouseDown=false});
+document.addEventListener('mousedown',e=>{
+ if(editorOpen||!locked||settingsOpen||!started||ended)return;
+ if(e.button===0){mouseDown=true;tryFireDiscrete();}
+ if(e.button===2)aiming=true;
+});
+document.addEventListener('mouseup',e=>{if(e.button===0)mouseDown=false;if(e.button===2)aiming=false});
 renderer.domElement.addEventListener('click',tryLock);
 renderer.domElement.addEventListener('contextmenu',e=>e.preventDefault());
 $('unlock').onclick=tryLock;
@@ -784,7 +1022,7 @@ document.addEventListener('pointerlockchange',()=>{locked=document.pointerLockEl
 document.addEventListener('visibilitychange',()=>{if(document.hidden){mouseDown=false;for(const k in keys)keys[k]=false}});
 window.addEventListener('blur',()=>{mouseDown=false;for(const k in keys)keys[k]=false});
 window.addEventListener('beforeunload',cleanup);
-window.trackDuelReady=true;
+updateWeaponHud();window.trackDuelReady=true;
 </script>
 </body>
 </html>
