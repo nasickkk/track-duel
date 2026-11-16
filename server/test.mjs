@@ -60,6 +60,8 @@ test('WebSocket relay: create, join, forward, disconnect',async t=>{
   assert.equal((await g.next()).t,'joined');
   assert.equal((await h.next()).t,'paired');
   assert.equal((await g.next()).t,'paired');
+  h.send({t:'ping',id:4321});
+  assert.deepEqual(await h.next(),{t:'pong',id:4321});
   const payload={t:'pose',x:2,y:0,z:3,yaw:0,weapon:'tap'};
   h.send({t:'game',data:payload});
   assert.deepEqual(await g.next(),{t:'game',data:payload});
