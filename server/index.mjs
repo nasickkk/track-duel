@@ -18,7 +18,7 @@ const clients = new Set();
 const MAX_ROOMS = 250;
 const MAX_MSG_BYTES = 65536;
 const MAX_MESSAGES_PER_SECOND = 220; // supports up to 64 pose updates + host HP sync + diagnostic pings
-const GAME_TYPES = new Set(['start','pose','sync','shot','shotfx','rematch','net-ping','net-pong']);
+const GAME_TYPES = new Set(['start','pose','sync','shot','shotfx','rematch','net-ping','net-pong','hit-ack','track-ack']);
 
 const server = http.createServer((request, response) => {
   if (LAN_MODE && (request.url === '/play' || request.url === '/play/')) {
