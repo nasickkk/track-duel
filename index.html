@@ -390,7 +390,7 @@ function resetDiagnostics(){
 }
 function predictedHit(){
  const q=p[me],visible={x:enemyVisual.x,y:enemyVisual.y,z:enemyVisual.z};
- return shotHit(q,visible);
+ const h=shotHit(q,visible);return {hit:h.distance<Infinity,head:h.head};
 }
 function formatShotAck(weapon,id,predicted,result,elapsed,delay){
  const actual=!!result.accepted&&!!result.hit;
@@ -562,7 +562,7 @@ function paintPing(){
  if(!started||bot){c.textContent=bot?'LOCAL · физика 128 Гц':'';return}
  const peer=quality.peerRtt===null?'…':Math.round(quality.peerRtt)+' мс';
  const serv=quality.serverRtt===null?'…':Math.round(quality.serverRtt)+' мс';
- c.textContent=(netMode==='relay'?'WS · RTT сервер '+serv+' · RTT друг '+peer:'P2P · RTT друг '+peer)+' · сеть до 64 Гц';
+ c.textContent=(netMode==='relay'?'WS · RTT сервер '+serv+' · RTT друг '+peer:'P2P · RTT друг '+peer)+(role==='host'&&lobby.hostDelayMs?' · handicap +'+lobby.hostDelayMs+'мс':'')+' · сеть до 64 Гц';
 }
 function probeNetwork(now){
  if(!conn?.open||bot||!started)return;
@@ -696,7 +696,7 @@ function openSettings(){if(!started||ended)return;settingsOpen=true;mouseDown=fa
 function toggleSettings(){if(settingsOpen){hideSettings();tryLock()}else openSettings()}
 function refreshUnlock(){locked=document.pointerLockElement===renderer.domElement;$('unlock').classList.toggle('on',started&&!ended&&!locked&&!settingsOpen)}
 function tryLock(){if(started&&!ended&&!settingsOpen)renderer.domElement.requestPointerLock?.().catch(()=>{})}
-function resetPose(){p=spawn();p[me].weapon=activeWeapon;hp=[100,100];lastHp=100;roundLock=performance.now()+1250;transition=0;mouseDown=false;aiming=false;nextFireAt=0;acceptedShots[0]=acceptedShots[1]=-100000;nextAcceptedShot[0]=nextAcceptedShot[1]=0;for(const k in keys)keys[k]=false;
+function resetPose(){hostShots.length=hostTrackHistory.length=0;trackLastConfirm[0]=trackLastConfirm[1]=0;pendingShots.clear();p=spawn();p[me].weapon=activeWeapon;hp=[100,100];lastHp=100;roundLock=performance.now()+1250;transition=0;mouseDown=false;aiming=false;nextFireAt=0;acceptedShots[0]=acceptedShots[1]=-100000;nextAcceptedShot[0]=nextAcceptedShot[1]=0;for(const k in keys)keys[k]=false;
  enemyVisual.x=p[op].x;enemyVisual.y=p[op].y;enemyVisual.z=p[op].z;enemyVisual.yaw=p[op].yaw;refreshHud();}
 function refreshHud(){
  $('myhp').textContent=Math.ceil(hp[me])+' HP';$('enemyhp').textContent=Math.ceil(hp[op])+' HP';
@@ -783,8 +783,27 @@ function handleData(d){
    if(d.winner!==undefined&&d.winner!==null)finishRound(d.winner,d.match);
    if(lastHp>hp[me]+.3){lastHitFx=performance.now()}lastHp=hp[me];refreshHud();
  }
- if(d.t==='shot'&&role==='host'&&started&&!ended&&d.weapon!=='track'&&WEAPONS[d.weapon]&&lobby.weapons[d.weapon]){
-    if(d.weapon===p[op].weapon&&performance.now()-lastEnemyPose<1300){acceptDiscreteShot(op,d.weapon);remoteShotWeapon=d.weapon;remoteFlashUntil=performance.now()+(d.weapon==='sniper'?440:200);}
+ if(d.t==='shot'&&role==='host'&&started){
+   // Server is currently a relay; this browser is the hit authority.
+   let result={accepted:false,hit:false,head:false,damage:0};
+   if(!ended&&d.round===round&&d.weapon!=='track'&&WEAPONS[d.weapon]&&lobby.weapons[d.weapon]&&
+      d.weapon===p[op].weapon&&performance.now()-lastEnemyPose<1300){
+     result=acceptDiscreteShot(op,d.weapon);
+     remoteShotWeapon=d.weapon;remoteFlashUntil=performance.now()+(d.weapon==='sniper'?440:200);
+   }
+   if(Number.isSafeInteger(d.id)&&d.id>=0)safeSend({t:'hit-ack',id:d.id,round:d.round,weapon:d.weapon,...result});
+ }
+ if(d.t==='hit-ack'&&role==='guest'&&started){
+   const item=pendingShots.get(d.id);if(!item)return;
+   pendingShots.delete(d.id);
+   if(item.round!==d.round)return;
+   formatShotAck(item.weapon,d.id,item.predicted,d,performance.now()-item.at,0);
+ }
+ if(d.t==='track-ack'&&role==='guest'&&started&&d.round===round){
+   const pHit=predictedHit(),hit=!!d.hit;
+   hitTotals.shots++;hitTotals.verified++;
+   if(hit)playHitSound(!!d.head);
+   diagnosticLine('ТРЕК · локально сейчас '+hitText(pHit.hit,pHit.head)+' ~ хост '+hitText(hit,d.head)+' · '+(Number(d.damage)||0).toFixed(1)+' HP / окно');
  }
  if(d.t==='shotfx'&&role==='guest'&&started){remoteShotWeapon=d.weapon==='sniper'?'sniper':'tap';remoteFlashUntil=performance.now()+(remoteShotWeapon==='sniper'?440:200);}
  if(d.t==='rematch'){otherRematch=true;if(myRematch&&role==='host')startRematch()}
@@ -836,16 +855,29 @@ function checkRoundOver(){
    if(role==='host')safeSend({t:'sync',hp,score:[myScore,oppScore],round,winner,match});
  }
 }
-function acceptDiscreteShot(i,w){
- if(!started||ended||transition||performance.now()<roundLock||!WEAPONS[w]?.damage||!lobby.weapons[w])return false;
- if(!(bot||role==='host'))return false;
+function acceptDiscreteShot(i,w,shooterPose=null){
+ const result={accepted:false,hit:false,head:false,damage:0};
+ if(!started||ended||transition||performance.now()<roundLock||!WEAPONS[w]?.damage||!lobby.weapons[w])return result;
+ if(!(bot||role==='host'))return result;
  const now=performance.now(),config=WEAPONS[w];
- if(now<nextAcceptedShot[i])return false;
+ if(now<nextAcceptedShot[i])return result;
  acceptedShots[i]=now;nextAcceptedShot[i]=now+config.cooldown-30;
- const hit=shotHit(p[i],p[1-i]);
- if(hit.distance<Infinity){const damage=hit.head?(w==='sniper'?100:18):config.damage;
-   hp[1-i]=Math.max(0,hp[1-i]-damage);if(i!==me)lastHitFx=now;}
- checkRoundOver();return true;
+ const h=shotHit(shooterPose||p[i],p[1-i]);result.accepted=true;
+ if(h.distance<Infinity){
+   result.hit=true;result.head=h.head;
+   result.damage=h.head?(w==='sniper'?100:18):config.damage;
+   hp[1-i]=Math.max(0,hp[1-i]-result.damage);if(i!==me)lastHitFx=now;
+ }
+ checkRoundOver();return result;
+}
+function processHostShots(now){
+ if(role!=='host')return;
+ while(hostShots.length&&hostShots[0].at<=now){
+   const task=hostShots.shift();
+   if(task.round!==round||ended||transition)continue;
+   const result=acceptDiscreteShot(me,task.weapon,task.pose);
+   formatShotAck(task.weapon,task.id,task.predicted,result,now-task.created,lobby.hostDelayMs);
+ }
 }
 function tryFireDiscrete(){
  if(!started||ended||transition||!locked||settingsOpen||editorOpen||performance.now()<roundLock)return;
@@ -853,10 +885,21 @@ function tryFireDiscrete(){
  const now=performance.now(),config=WEAPONS[w];if(now<nextFireAt)return;
  nextFireAt=now+config.cooldown;fireFlashUntil=now+105;shotTrailUntil=now+(w==='sniper'?440:200);
  playShotSound(w);visualRecoil=Math.max(visualRecoil,w==='sniper'?.13:.055);
+ const id=++nextShotId,local=predictedHit();
+ hitTotals.shots++;
  if(role==='guest'){
-   const q=p[me];safeSend({t:'pose',x:q.x,z:q.z,y:q.y,yaw:q.yaw,pitch:q.pitch,fire:false,weapon:w});
-   safeSend({t:'shot',weapon:w});
- }else acceptDiscreteShot(me,w);
+   const q=p[me];
+   pendingShots.set(id,{weapon:w,predicted:local,at:now,round});
+   safeSend({t:'pose',x:q.x,z:q.z,y:q.y,yaw:q.yaw,pitch:q.pitch,fire:false,weapon:w});
+   safeSend({t:'shot',id,round,weapon:w});
+   diagnosticLine(w.toUpperCase()+' #'+id+' локально '+hitText(local.hit,local.head)+' · ждём подтверждение хоста');
+ }else if(role==='host'&&lobby.hostDelayMs>0){
+   hostShots.push({id,round,weapon:w,created:now,at:now+lobby.hostDelayMs,pose:{...p[me]},predicted:local});
+   diagnosticLine(w.toUpperCase()+' #'+id+' локально '+hitText(local.hit,local.head)+' · handicap +'+lobby.hostDelayMs+'мс');
+ }else{
+   const result=acceptDiscreteShot(me,w);
+   formatShotAck(w,id,local,result,0,0);
+ }
  if(role==='host')safeSend({t:'shotfx',weapon:w});
 }
 function finishRound(winner,match){
@@ -867,12 +910,36 @@ function finishRound(winner,match){
 }
 function resolveDamage(dt){
  if(!(role==='host'||bot)||ended||transition||performance.now()<roundLock)return;
+ const now=performance.now(),delay=role==='host'?lobby.hostDelayMs:0;
+ if(delay>0){
+   const mePose=p[me];
+   hostTrackHistory.push({at:now,pose:{...mePose}});
+   while(hostTrackHistory.length>1&&hostTrackHistory[1].at<=now-delay)hostTrackHistory.shift();
+ }
  for(let i=0;i<2;i++){
-   if(!p[i].fire||!lobby.weapons.track)continue;
-   if(shotDistance(p[i],p[1-i])!==Infinity){
-     const damage=bot&&i===1?19:34;
-     hp[1-i]=Math.max(0,hp[1-i]-damage*dt);
-     if(i!==me)lastHitFx=performance.now();
+   let shooter=p[i],firing=shooter.fire;
+   if(i===me&&delay>0){
+      const old=hostTrackHistory[0];
+      firing=!!old&&old.at<=now-delay&&old.pose.fire;
+      if(firing)shooter=old.pose;
+   }
+   if(!firing||!lobby.weapons.track)continue;
+   const h=shotHit(shooter,p[1-i]);
+   const confirmed=h.distance!==Infinity,damage=confirmed?(bot&&i===1?19:34)*dt:0;
+   if(confirmed){
+     hp[1-i]=Math.max(0,hp[1-i]-damage);
+     if(i!==me)lastHitFx=now;
+   }
+   if(now-trackLastConfirm[i]>210){
+     trackLastConfirm[i]=now;
+     if(i===me){
+       const local=predictedHit();
+       hitTotals.shots++;hitTotals.verified++;
+       if(confirmed)playHitSound(h.head);
+       diagnosticLine('ТРЕК · локально '+hitText(local.hit,local.head)+' → хост '+hitText(confirmed,h.head)+' · '+damage.toFixed(2)+' HP / шаг'+(delay?' · handicap '+delay+'мс':''));
+     }else if(role==='host'){
+       safeSend({t:'track-ack',round,hit:confirmed,head:h.head,damage:damage*(SIM_HZ/5)});
+     }
    }
  }
  checkRoundOver();
@@ -1052,7 +1119,7 @@ function animate(time){
      fixedAcc-=step;steps++;
    }
    if(steps===8&&fixedAcc>step)fixedAcc=step;
-   if(!ended){sendPose(dt);probeNetwork(time)}
+   if(!ended){processHostShots(time);sendPose(dt);probeNetwork(time)}
    // Round transitions are driven by the HOST only (avoids double reset/teleport on guests).
    if(transition&&!ended&&role!=='guest'&&time-transition>1700){
      round++;resetPose();if(role==='host')safeSend({t:'sync',hp,score:[myScore,oppScore],round,reset:true});
