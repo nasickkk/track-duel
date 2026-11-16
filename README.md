@@ -1,10 +1,32 @@
-# TRACK DUEL 5.0
+# TRACK DUEL 5.1
 
-A lightweight browser-based FPS tracking duel and 3D map workshop, built with Three.js and experimental PeerJS peer-to-peer networking.
+A lightweight browser-based FPS tracking duel and 3D map workshop, built with Three.js and a choice of experimental PeerJS peer-to-peer networking or a separately deployed WebSocket relay server.
 
 **Play (GitHub Pages):** https://nasickkk.github.io/track-duel/
 
-> **Prototype:** Supports 1v1 (two people via peer-to-peer room code) and a local moving bot. No dedicated authoritative multiplayer server, persistent accounts, anti-cheat, match history, or reliable latency compensation yet. **3-player free-for-all and 2v2 are planned, not playable.** GitHub Pages hosts static files only.
+> **Prototype:** Supports 1v1 (two people using a room code) and a local moving bot. No dedicated authoritative multiplayer server, persistent accounts, anti-cheat, match history, or reliable latency compensation yet. **3-player free-for-all and 2v2 are planned, not playable.** GitHub Pages hosts static files only.
+
+## 5.1 — Connection fix: optional WebSocket relay
+
+If **rooms are only created with VPN, or joining hangs indefinitely**, PeerJS/WebRTC may be blocked by an ISP, firewall or NAT. **GitHub Pages cannot provide a WebSocket game server.**
+
+The game now has two network modes under **Настройки сети**:
+- **PeerJS / P2P (experimental)**: no backend deployment, but not universally reachable. A network timeout now explains errors instead of spinning forever. Connecting via VPN may still fail during WebRTC's ICE stage.
+- **Через сервер (WebSocket)**: both browsers connect to one server; peer-to-peer connectivity is not required. The repo contains a minimal Node.js relay in `server/` and a free Render Blueprint `render.yaml`.
+
+### Deploy the relay once on Render
+
+1. Visit https://dashboard.render.com/ and sign in.
+2. Choose **New → Blueprint**; connect GitHub and select repository `nasickkk/track-duel`.
+3. Use `main` and the default Blueprint file `render.yaml`; review and click **Deploy Blueprint**.
+4. Open the created web service after it becomes **Live**. Copy its public HTTPS URL ending in `.onrender.com` (your actual URL may differ from the service name).
+5. Verify `https://YOUR-RENDER-URL/health` returns JSON with `"ok":true`.
+6. In TRACK DUEL 5.1, select **Через сервер (WebSocket)** and enter the HTTPS Render URL.
+7. Click **Создать комнату** and use **Скопировать ссылку другу**. Your friend opens that link, which fills the same server URL and room code, then clicks **Войти**.
+
+For local development: from `server/`, run `npm install` and `npm start` (default port 10000; WebSocket endpoint `/ws`). Browser use at localhost requires NODE_ENV other than production. The Render deployment config accepts the GitHub Pages origin only.
+
+**Limitations:** Render free web services can sleep after inactivity; the first connection may take about a minute, so the client waits up to 95 seconds. The relay is for hobby/testing only: it is not an authoritative anti-cheat server and does not persist accounts or scores. Room codes are not passwords, and the server caps message sizes and rates. With some networks even the Render domain can be inaccessible, so successful access from every country cannot be guaranteed.
 
 ## 5.0 — New features
 
@@ -41,7 +63,7 @@ Open the same website in both players' browsers. One clicks **Create Room**, sha
 
 ## Security and networking caveat
 
-The 1v1 P2P host is the provisional match coordinator, **not a trusted anti-cheat server**. Do not treat room codes as account passwords, and do not add credentials, API secrets, or private tokens to the static HTML or repository. A future public release with profiles, saved stats, and dependable competitive matchmaking requires a dedicated backend with strong credential storage, validation and security controls.
+The 1v1 host is the provisional match coordinator, **not a trusted anti-cheat server**. Do not treat room codes as account passwords, and do not add credentials, API secrets, or private tokens to the static HTML or repository. A future public release with profiles, saved stats, and dependable competitive matchmaking requires a dedicated backend with strong credential storage, validation and security controls.
 
 ## Roadmap
 
@@ -51,4 +73,4 @@ The 1v1 P2P host is the provisional match coordinator, **not a trusted anti-chea
 4. Custom terrain height editing, more flexible 3D gizmos, user map sharing and browser-safe presets.
 5. Cosmetics: low-poly skins, sound effects, taunts and expressions.
 
-Files: `index.html` is currently the entire prototype client. Future refactors will split client, server and shared game systems.
+Files: `index.html` is the browser client. `server/` is a basic WebSocket relay with tests, and `render.yaml` configures optional Render hosting. Gameplay is still not server-authoritative.
