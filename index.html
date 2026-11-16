@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TRACK DUEL 5.2 — Low Latency & Tracers</title>
+<title>TRACK DUEL 5.3 — Radmin LAN Mode</title>
 <style>
 :root{color-scheme:dark;--accent:#56f2cf;--pink:#ff6985;--dark:#080d18;--dim:#9aacbf}
 *{box-sizing:border-box}html,body{height:100%;margin:0;overflow:hidden;background:var(--dark);font-family:Inter,system-ui,-apple-system,Segoe UI,Arial,sans-serif;color:#f4faff;user-select:none}
@@ -93,7 +93,7 @@ button,input{font:inherit}button{cursor:pointer}canvas{display:block}#game{posit
     <div class="score"><span id="myScore">0</span> : <span id="oppScore">0</span><small id="roundLabel">РАУНД 1</small></div>
     <div class="health right"><div class="barhead"><span id="oppName">СОПЕРНИК</span><span id="enemyhp">100 HP</span></div><div class="track"><div class="fill" id="enemyfill"></div></div></div>
   </div>
-  <div id="mode">TRACK DUEL 5.2</div><div id="conn" title="RTT = время туда и обратно"></div>
+  <div id="mode">TRACK DUEL 5.3</div><div id="conn" title="RTT = время туда и обратно"></div>
   <div id="cross"></div>
   <div id="scopeOverlay" aria-hidden="true"><div class="scopeLens"><div class="scopeHorizontal"></div><div class="scopeVertical"></div><div class="scopeDot"></div><div class="scopeTicks"></div></div></div><div id="centerMessage"></div><div id="dps"></div><div id="padTip"></div><div id="weaponHud"></div><div id="gunToast"></div>
   <div id="shoot">ТРЕКЕР: УДЕРЖИВАЙ ЛКМ</div>
@@ -115,7 +115,7 @@ button,input{font:inherit}button{cursor:pointer}canvas{display:block}#game{posit
   </section>
 </div>
 <div id="overlay"><div class="shell">
-  <div class="brand">MULTIPLAYER AIM TRAINER · V5.2 / PING & PHYSICS</div>
+  <div class="brand">MULTIPLAYER AIM TRAINER · V5.3 / LAN & PING</div>
   <h1 class="title">TRACK<span>.</span>DUEL</h1>
   <p class="sub">Создавай карту в интерактивном 3D-редакторе, испытывай джамп-пады и новые оружия: трекер, тапалку и авик. Играй против бота или друга в 1 на 1 — хост поделится своей картой автоматически.</p>
   <div id="mainActions" class="actions">
@@ -534,17 +534,20 @@ function timeoutNet(epoch,ms,message){
  clearTimeout(netTimer);netTimer=setTimeout(()=>{if(netEpoch===epoch&&!started)netError(message)},ms)
 }
 function relayAddress(){
- let value=$('relayUrl').value.trim();if(!value)throw Error('Сначала нужен адрес сервера из Render.');
+ let value=$('relayUrl').value.trim();if(!value)throw Error('Укажи адрес WebSocket-сервера (или запусти LAN-режим).');
  if(!/^https?:\/\//i.test(value)&&!/^wss?:\/\//i.test(value))value='https://'+value;
- const u=new URL(value);if(u.protocol==='https:')u.protocol='wss:';
- else if(u.protocol==='http:'&&u.hostname==='localhost')u.protocol='ws:';
- if(u.protocol!=='wss:'&&!(u.protocol==='ws:'&&u.hostname==='localhost'))throw Error('Нужен HTTPS/WSS адрес.');
+ const u=new URL(value);
+ const sameLanOrigin=location.protocol==='http:'&&location.pathname.startsWith('/play')&&u.host===location.host;
+ if(u.protocol==='https:')u.protocol='wss:';
+ else if(u.protocol==='http:'&&(u.hostname==='localhost'||sameLanOrigin))u.protocol='ws:';
+ if(u.protocol!=='wss:'&&!(u.protocol==='ws:'&&(u.hostname==='localhost'||sameLanOrigin)))
+   throw Error('Для сайта нужен HTTPS/WSS. В Radmin LAN открой страницу http://IP:10000/play на обоих ПК.');
  u.pathname='/ws';u.search='';u.hash='';return u.toString();
 }
 function updateNetUI(){
  const relay=$('netMode').value==='relay';
  $('relaySettings').style.display=relay?'flex':'none';
- $('netInfo').textContent=relay?'Через сервер без прямого P2P. Оба подключаются к одному адресу, его можно передать ссылкой.':'PeerJS может блокироваться провайдером, а WebRTC — зависать из-за NAT. Если не работает, выбери сервер.';
+ $('netInfo').textContent=relay?(location.protocol==='http:'&&location.pathname.startsWith('/play')?'Radmin LAN: оба игрока открывают один адрес IP:10000/play. Сервер на компьютере хоста.':'Через сервер без прямого P2P. Оба подключаются к одному адресу, его можно передать ссылкой.'):'PeerJS может блокироваться провайдером, а WebRTC — зависать из-за NAT. Если не работает, выбери сервер.';
  try{localStorage.setItem('td-net-mode',$('netMode').value);localStorage.setItem('td-relay-url',$('relayUrl').value.trim())}catch{}
 }
 try{
@@ -552,6 +555,10 @@ try{
  $('relayUrl').value=localStorage.getItem('td-relay-url')||'';
  const params=new URL(location.href).searchParams;
  if(params.get('server')){$('relayUrl').value=params.get('server');$('netMode').value='relay'}
+ // Local Radmin game is served by the relay itself: use that same origin for WebSockets.
+ if(location.protocol==='http:'&&location.pathname.startsWith('/play')){
+   $('relayUrl').value=location.origin;$('netMode').value='relay';
+ }
  if(/^[A-HJ-NP-Z2-9]{6}$/i.test(params.get('room')||''))$('codeInput').value=params.get('room').toUpperCase();
 }catch{}
 $('netMode').onchange=updateNetUI;$('relayUrl').onchange=updateNetUI;updateNetUI();
@@ -646,7 +653,7 @@ function refreshHud(){
 function begin(which){
  role=which;me=which==='guest'?1:0;op=1-me;bot=which==='bot';started=true;ended=false;fixedAcc=sendAcc=syncAcc=0;resetQuality();enforceAllowedGun();
  overlay.classList.add('hidden');hud.classList.add('on');$('oppName').textContent=bot?'БОТ':'СОПЕРНИК';
- $('mode').textContent=(bot?'TRACK DUEL 5.2 / BOT':'TRACK DUEL 5.2 / ONLINE 1V1')+' · '+activeMap.name.slice(0,22);paintPing();
+ $('mode').textContent=(bot?'TRACK DUEL 5.3 / BOT':'TRACK DUEL 5.3 / ONLINE 1V1')+' · '+activeMap.name.slice(0,22);paintPing();
  $('endControls').style.display='none';$('again').style.display='';hideSettings();
  round=1;myScore=0;oppScore=0;myRematch=otherRematch=false;resetPose();updateWeaponHud();center.textContent='КЛИКНИ ДЛЯ ИГРЫ';refreshUnlock();tryLock();
 }
@@ -683,11 +690,17 @@ function bindConnection(){
  c.on('error',e=>{if(c===conn)alertMsg('Ошибка игрового канала: '+(e?.message||'неизвестно'))});
 }
 $('bot').onclick=()=>{if(lobby.mode==='1v1')begin('bot');};$('cancel').onclick=home;$('leave').onclick=home;
-$('copy').onclick=()=>navigator.clipboard.writeText($('roomCode').textContent).then(()=>{$('copy').textContent='СКОПИРОВАНО';setTimeout(()=>$('copy').textContent='КОПИРОВАТЬ',1400)}).catch(()=>alertMsg('Выдели код и скопируй вручную'));
+function shareText(text,msg){
+ // navigator.clipboard is unavailable on plain HTTP origins such as Radmin VPN IPs.
+ if(navigator.clipboard?.writeText){
+   navigator.clipboard.writeText(text).then(()=>alertMsg(msg)).catch(()=>window.prompt('Скопируй вручную:',text));
+ }else window.prompt('Скопируй вручную:',text);
+}
+$('copy').onclick=()=>shareText($('roomCode').textContent,'Код скопирован');
 $('copyInvite').onclick=()=>{
  const u=new URL(location.href);u.search='';u.searchParams.set('room',$('roomCode').textContent);
  if(netMode==='relay')u.searchParams.set('server',$('relayUrl').value.trim());
- navigator.clipboard.writeText(u.toString()).then(()=>alertMsg('Ссылка скопирована — другу нужно нажать «Войти».')).catch(()=>alertMsg('Не удалось скопировать ссылку.'));
+ shareText(u.toString(),'Ссылка скопирована — другу нужно нажать «Войти».');
 };
 $('again').onclick=()=>{
  if(bot){myScore=oppScore=0;round=1;ended=false;$('endControls').style.display='none';resetPose();tryLock()}
