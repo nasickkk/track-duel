@@ -9,7 +9,7 @@ const rooms = new Map();
 const clients = new Set();
 const MAX_ROOMS = 250;
 const MAX_MSG_BYTES = 65536;
-const MAX_MESSAGES_PER_SECOND = 100;
+const MAX_MESSAGES_PER_SECOND = 220; // supports up to 64 pose updates + host HP sync + diagnostic pings
 const GAME_TYPES = new Set(['start','pose','sync','shot','shotfx','rematch','net-ping','net-pong']);
 
 const server = http.createServer((request, response) => {
@@ -68,7 +68,7 @@ wss.on('connection',(ws,request) => {
     let msg;
     try {msg=JSON.parse(data.toString('utf8'));} catch {fail(ws,'invalid-json');return;}
     if (!msg || typeof msg!=='object' || Array.isArray(msg)) return;
-    if (msg.t==='ping') {send(ws,{t:'pong'});return;}
+    if (msg.t==='ping') {const id=Number.isSafeInteger(msg.id)&&msg.id>=0?msg.id:null;send(ws,{t:'pong',id});return;}
     if (msg.t==='create') {
       if (meta.role || meta.room) {fail(ws,'already-in-room');return;}
       if (rooms.size>=MAX_ROOMS) {fail(ws,'server-busy');return;}
