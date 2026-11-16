@@ -1019,7 +1019,7 @@ function animate(time){
 const ed=$('mapEditor'),edCanvas=$('editorCanvas'),ctx=edCanvas.getContext('2d');
 // The FPS and the 3D workshop deliberately share one WebGL context and scene.
 // This avoids duplicate memory use and shows the exact geometry used in a match.
-const editor3D=$('editor3D'),editorCamera=new THREE.PerspectiveCamera(58,1,.1,180);
+const editor3D=$('editor3D'),editorCamera=new THREE.PerspectiveCamera(58,1,.1,550);
 const editorRay=new THREE.Raycaster(),editorFloorPlane=new THREE.Plane(new THREE.Vector3(0,1,0),0);
 const editorCameraTarget=new THREE.Vector3(0,1,0);
 let editorView='3d',orbitTheta=.75,orbitPhi=.75,orbitRadius=70,editorDrag3d=null,editorHover3d=null;
@@ -1048,10 +1048,11 @@ for(const [axis,color] of [['w',0xff647e],['d',0x57b8ff],['h',0xffd775]]){
  mesh.userData.sizeAxis=axis;mesh.visible=false;scene.add(mesh);sizeHandles[axis]=mesh;
 }
 function syncSizeHandles(){
- const o=selected?.kind==='object'?getSelected():null;
+ const o=getSelected(),spawnSelected=selected?.kind==='spawn';
  for(const [axis,mesh] of Object.entries(sizeHandles)){
-  mesh.visible=!!o&&editorOpen&&editorView==='3d';if(!mesh.visible)continue;
-  mesh.position.set(o.x+(axis==='w'?o.w/2+.45:0),axis==='h'?o.h+.48:o.h/2,o.z+(axis==='d'?o.d/2+.45:0));
+  mesh.visible=!!o&&editorOpen&&editorView==='3d'&&(!spawnSelected||axis==='h');if(!mesh.visible)continue;
+  if(spawnSelected)mesh.position.set(o.x,o.y+2.2,o.z);
+  else mesh.position.set(o.x+(axis==='w'?o.w/2+.45:0),axis==='h'?o.h+.48:o.h/2,o.z+(axis==='d'?o.d/2+.45:0));
  }
 }
 const previewGhost=new THREE.Mesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshBasicMaterial({color:0x7afee0,transparent:true,opacity:.25,depthWrite:false,wireframe:true}));previewGhost.visible=false;scene.add(previewGhost);
@@ -1063,7 +1064,7 @@ function editorMeshForSelection(){
 }
 function syncEditor3D(){
  const enabled=editorOpen&&editorView==='3d';syncSpawnMarkers();syncSizeHandles();
- spawnMarkers.forEach((m,i)=>{m.visible=enabled;m.position.set(activeMap.spawns[i].x,0,activeMap.spawns[i].z)});
+ spawnMarkers.forEach((m,i)=>{m.visible=enabled;m.position.set(activeMap.spawns[i].x,activeMap.spawns[i].y||0,activeMap.spawns[i].z)});
  const target=enabled?editorMeshForSelection():null;
  editorOutline.visible=!!target;
  if(target)editorOutline.setFromObject(target);
@@ -1095,10 +1096,10 @@ function editor3DDown(e){
  e.preventDefault();
  const pos=editor3DRay(e);if(!pos)return;editorHover3d=pos;
  if(e.button===2){editorDrag3d={type:'orbit',lastX:e.clientX,lastY:e.clientY};renderer.domElement.setPointerCapture?.(e.pointerId);return}
- if(tool==='select'&&selected?.kind==='object'){
+ if(tool==='select'&&selected){
   const hits=editorRay.intersectObjects(Object.values(sizeHandles).filter(m=>m.visible),false);
   if(hits.length){const axis=hits[0].object.userData.sizeAxis,obj=getSelected();saveUndo();
-   editorDrag3d={type:'resize',axis,start:pos,startY:e.clientY,initial:{w:obj.w,d:obj.d,h:obj.h},moved:false};
+   editorDrag3d={type:'resize',axis,start:pos,startY:e.clientY,initial:{w:obj.w,d:obj.d,h:selected.kind==='spawn'?obj.y:obj.h},moved:false};
    renderer.domElement.setPointerCapture?.(e.pointerId);edMsg('Масштаб: потяни цветной кубик.');return;
   }
  }
@@ -1119,12 +1120,13 @@ function editor3DMove(e){
   editorDrag3d.lastX=e.clientX;editorDrag3d.lastY=e.clientY;updateOrbitCamera();return;
  }
  const pos=editor3DRay(e);if(!pos)return;editorHover3d=pos;
- if(editorDrag3d?.type==='resize'&&selected?.kind==='object'){
-  const o=getSelected(),a=editorDrag3d.axis,initial=editorDrag3d.initial;
+ if(editorDrag3d?.type==='resize'&&selected){
+  const o=getSelected(),a=editorDrag3d.axis,initial=editorDrag3d.initial,spawnSelected=selected.kind==='spawn';
   const delta=a==='w'?(pos.x-editorDrag3d.start.x)*2:a==='d'?(pos.z-editorDrag3d.start.z)*2:(editorDrag3d.startY-e.clientY)*orbitRadius*.009;
-  const maxSize=a==='w'?Math.min(40,HALF_X*2-1.4):a==='d'?Math.min(40,HALF_Z*2-1.4):12;
-  const v=Math.round(THREE.MathUtils.clamp(initial[a]+delta,a==='h'?.3:.5,maxSize)*10)/10;
-  if(Math.abs(v-o[a])>.02){o[a]=v;fitObject(o);rebuildArena();updateProperties();editorDrag3d.moved=true;}
+  const maxSize=spawnSelected?24:a==='w'?Math.min(40,HALF_X*2-1.4):a==='d'?Math.min(40,HALF_Z*2-1.4):12;
+  const v=Math.round(THREE.MathUtils.clamp(initial[a]+delta,spawnSelected?0:a==='h'?.3:.5,maxSize)*10)/10;
+  const key=spawnSelected?'y':a;
+  if(Math.abs(v-o[key])>.02){o[key]=v;if(!spawnSelected){fitObject(o);rebuildArena()}updateProperties();editorDrag3d.moved=true;}
   return;
  }
  if(editorDrag3d?.type==='move'&&selected){
@@ -1138,7 +1140,7 @@ function editor3DMove(e){
  syncEditor3D();
 }
 function editor3DUp(){
- if(editorDrag3d?.type==='resize'&&editorDrag3d.moved)edMsg('Размер изменён в 3D. Нажми «Сохранить».');
+ if(editorDrag3d?.type==='resize'&&editorDrag3d.moved)edMsg(selected?.kind==='spawn'?'Высота спавна изменена. Нажми «Сохранить».':'Размер изменён в 3D. Нажми «Сохранить».');
  if(editorDrag3d?.type==='move'&&editorDrag3d.moved){rebuildArena();updateProperties();edMsg('Позиция изменена. Сохрани карту перед выходом.');}
  editorDrag3d=null;
 }
@@ -1162,7 +1164,7 @@ renderer.domElement.addEventListener('pointerdown',editor3DDown);
 renderer.domElement.addEventListener('pointermove',editor3DMove);
 renderer.domElement.addEventListener('pointerup',editor3DUp);
 renderer.domElement.addEventListener('pointercancel',editor3DUp);
-renderer.domElement.addEventListener('wheel',e=>{if(!editorOpen||editorView!=='3d')return;e.preventDefault();orbitRadius=THREE.MathUtils.clamp(orbitRadius*Math.exp(e.deltaY*.0011),18,135);updateOrbitCamera()},{passive:false});
+renderer.domElement.addEventListener('wheel',e=>{if(!editorOpen||editorView!=='3d')return;e.preventDefault();orbitRadius=THREE.MathUtils.clamp(orbitRadius*Math.exp(e.deltaY*.0011),18,400);updateOrbitCamera()},{passive:false});
 
 const TOOL_NAMES={select:'Выделение',wall:'Стена',cover:'Укрытие',low:'Низкий блок',pillar:'Колонна',platform:'Платформа',pad:'Джамп-пад',spawn0:'Игрок 1',spawn1:'Игрок 2',spawn2:'Игрок 3',spawn3:'Игрок 4'};
 let editorOpen=false,tool='select',selected=null,drag=null,hover=null,history=[],redo=[],mapDirty=false;
@@ -1181,12 +1183,12 @@ function selectTool(t){if(t.startsWith('spawn')&&Number(t.slice(-1))>=activeMap.
 function getSelected(){return selected?.kind==='object'?activeMap.objects.find(o=>o.id===selected.id):selected?.kind==='spawn'?activeMap.spawns[selected.index]:null}
 function updateArenaSizeFields(){
  $('arenaWidth').value=activeMap.width;$('arenaDepth').value=activeMap.depth;
- const w=activeMap.width*20,h=activeMap.depth*20;
+ const scale=Math.min(20,1600/activeMap.width,1200/activeMap.depth),w=Math.round(activeMap.width*scale),h=Math.round(activeMap.depth*scale);
  if(edCanvas.width!==w)edCanvas.width=w;if(edCanvas.height!==h)edCanvas.height=h;
  edCanvas.style.aspectRatio=activeMap.width+'/'+activeMap.depth;
 }
 for(const [key,id] of [['width','arenaWidth'],['depth','arenaDepth']])$(id).addEventListener('change',()=>{
- const value=mapNum($(id).value,activeMap[key],key==='width'?32:24,key==='width'?100:90);
+ const value=mapNum($(id).value,activeMap[key],key==='width'?32:24,key==='width'?220:180);
  if(value===activeMap[key])return;
  saveUndo();const raw=JSON.parse(editorSnapshot());raw[key]=value;
  loadIntoArena(raw);selected=null;updateProperties();
@@ -1196,7 +1198,7 @@ for(const [key,id] of [['width','arenaWidth'],['depth','arenaDepth']])$(id).addE
 $('addSpawn').onclick=()=>{
  if(activeMap.spawns.length>=4){edMsg('Доступно максимум 4 спавна.');return}
  saveUndo();const i=activeMap.spawns.length;
- activeMap.spawns.push({x:i===2?-Math.min(12,HALF_X-4):Math.min(12,HALF_X-4),z:i===2?-Math.min(8,HALF_Z-4):Math.min(8,HALF_Z-4)});
+ activeMap.spawns.push({x:i===2?-Math.min(12,HALF_X-4):Math.min(12,HALF_X-4),y:0,z:i===2?-Math.min(8,HALF_Z-4):Math.min(8,HALF_Z-4)});
  selected={kind:'spawn',index:i};updateProperties();syncSpawnMarkers();edMsg('Добавлен спавн №'+(i+1)+'. Перемести его инструментом или мышью.');
 };
 $('removeSpawn').onclick=()=>{
@@ -1208,12 +1210,15 @@ function updateProperties(){
  const o=getSelected(),has=!!o; $('editorObjectProps').classList.toggle('hide',!has);
  $('editorSelection').textContent=!has?'НИЧЕГО НЕ ВЫБРАНО':selected.kind==='spawn'?'ТОЧКА ПОЯВЛЕНИЯ '+(selected.index+1):TOOL_NAMES[o.type].toUpperCase();
  if(has){$('propX').value=+o.x.toFixed(2);$('propZ').value=+o.z.toFixed(2)}
+ const spawnSelected=selected?.kind==='spawn';$('spawnProps').classList.toggle('hide',!spawnSelected);if(spawnSelected)$('propSpawnY').value=+o.y.toFixed(2);
  const solid=selected?.kind==='object';$('solidProps').classList.toggle('hide',!solid);
  if(solid){for(const [key,id] of [['w','propW'],['d','propD'],['h','propH']])$(id).value=+o[key].toFixed(2);$('propColor').value=o.color}
  updateEditorStats();
 }
 function fitObject(o){o.x=Math.max(-HALF_X+o.w/2+.7,Math.min(HALF_X-o.w/2-.7,o.x));o.z=Math.max(-HALF_Z+o.d/2+.7,Math.min(HALF_Z-o.d/2-.7,o.z))}
 function collidesSpawn(s){return activeMap.objects.some(o=>o.type!=='pad' &&
+ // Starting on TOP of a platform is valid, but starting INSIDE a solid is not.
+ (s.y||0)<o.h-.04&&
  Math.abs(s.x-o.x)<o.w/2+PLAYER_RADIUS+.18&&Math.abs(s.z-o.z)<o.d/2+PLAYER_RADIUS+.18)}
 function validSpawns(){return !activeMap.spawns.some(collidesSpawn)}
 function saveCurrentMap(){
@@ -1253,6 +1258,12 @@ function rotateSelected(){const o=getSelected();if(selected?.kind!=='object'||!o
 function deleteSelected(){if(selected?.kind!=='object')return;saveUndo();activeMap.objects=activeMap.objects.filter(o=>o.id!==selected.id);selected=null;rebuildArena();updateProperties();edMsg('Объект удалён')}
 function copySelected(){const o=getSelected();if(selected?.kind!=='object'||activeMap.objects.length>=120)return;saveUndo();const v={...o,id:allocateId(),x:o.x+1.5,z:o.z+1.5};fitObject(v);activeMap.objects.push(v);selected={kind:'object',id:v.id};rebuildArena();updateProperties();edMsg('Копия добавлена')}
 $('rotateObject').onclick=rotateSelected;$('deleteObject').onclick=deleteSelected;$('copyObject').onclick=copySelected;
+$('propSpawnY').addEventListener('change',()=>{
+ const o=getSelected();if(selected?.kind!=='spawn'||!o)return;
+ const y=mapNum($('propSpawnY').value,o.y,0,24);
+ if(y===o.y)return;
+ saveUndo();o.y=y;updateProperties();syncEditor3D();edMsg('Высота спавна '+y+'. Сохрани карту.');
+});
 for(const [key,id] of [['x','propX'],['z','propZ'],['w','propW'],['d','propD'],['h','propH'],['color','propColor']]){
  $(id).addEventListener('change',()=>{const o=getSelected();if(!o)return;saveUndo();
   if(key==='color')o.color=$(id).value;
@@ -1316,7 +1327,7 @@ function drawEditor(){
  }
  for(let i=0;i<activeMap.spawns.length;i++){const o=activeMap.spawns[i],x=mapX(o.x),z=mapZ(o.z),color=['#62eebd','#ff7a93','#ffd872','#a68aff'][i];
   ctx.beginPath();ctx.arc(x,z,21,0,Math.PI*2);ctx.fillStyle='#0a2632';ctx.fill();ctx.strokeStyle=selected?.kind==='spawn'&&selected.index===i?'#fff29e':color;ctx.lineWidth=4;ctx.stroke();
-  ctx.fillStyle=color;ctx.font='bold 21px system-ui';ctx.textAlign='center';ctx.fillText(String(i+1),x,z+8);
+  ctx.fillStyle=color;ctx.font='bold 21px system-ui';ctx.textAlign='center';ctx.fillText(String(i+1),x,z+8);ctx.font='bold 11px system-ui';ctx.fillText('Y '+(o.y||0).toFixed(1),x-19,z+31);
   ctx.fillStyle=color;ctx.beginPath();ctx.moveTo(x+(i===0?28:-28),z);ctx.lineTo(x+(i===0?38:-38),z-8);ctx.lineTo(x+(i===0?38:-38),z+8);ctx.closePath();ctx.fill();
  }
  if(hover&&tool!=='select'&& !tool.startsWith('spawn')){
