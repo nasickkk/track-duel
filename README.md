@@ -1,56 +1,54 @@
-# TRACK DUEL — 4.0
+# TRACK DUEL 5.0
 
-**TRACK DUEL** — небольшой браузерный 3D FPS aim-trainer для дуэлей 1v1, тренировок с ботом и создания собственных арен. Сайт: **https://nasickkk.github.io/track-duel/**
+A lightweight browser-based FPS tracking duel and 3D map workshop, built with Three.js and experimental PeerJS peer-to-peer networking.
 
-> Прототип. Онлайн-режим сейчас работает через WebRTC/PeerJS и не является защищённым соревновательным сервером. Учётные записи, постоянный рейтинг и серверная проверка всех попаданий ещё не реализованы.
+**Play (GitHub Pages):** https://nasickkk.github.io/track-duel/
 
-## Играть
+> **Prototype:** Supports 1v1 (two people via peer-to-peer room code) and a local moving bot. No dedicated authoritative multiplayer server, persistent accounts, anti-cheat, match history, or reliable latency compensation yet. **3-player free-for-all and 2v2 are planned, not playable.** GitHub Pages hosts static files only.
 
-Открыть [игру](https://nasickkk.github.io/track-duel/?v=4). Для сетевой игры оба игрока используют **версию 4.0**. Хост создаёт комнату и пересылает гостю код. Карта хоста передаётся автоматически. PeerJS/WebRTC может не соединить некоторые сети из-за NAT, брандмауэра и ограничений провайдера.
+## 5.0 — New features
 
-### Управление
+- **Full sniper scope:** Hold **right mouse button** with the sniper selected to enter a circular optic with a reticle, darkened periphery and zoom. Sniper FOV (zoom) and an **independent scoped mouse-sensitivity multiplier** can be adjusted via **V**. The scope and gun view model automatically switch as you aim/un-aim.
+- **3D scaling gizmos:** In Map Creator, select an object and drag the **red X** (width), **blue Z** (depth) or **yellow Y** (height) handle. Orbit with right mouse, zoom with mouse wheel, position objects by dragging, switch between 3D and 2D views.
+- **Adjustable arena dimensions:** Change width from **32 to 100** units, depth from **24 to 90** in the editor's right panel. Floors, boundary walls, collisions, and 2D map proportions update with the changes. Import/export JSON saves the dimensions alongside objects.
+- **Spawn editing:** Add or remove spawn markers up to **4**. Existing maps with two markers remain compatible. 2 markers = 1v1, 3 markers = future FFA3, 4 markers = future 2v2. The editor only prepares maps for larger formats; **online matches still allow two participants only**.
+- **Host lobby rules:** Select mode (1v1 currently enabled), enable/disable wall-kick, adjust its push force, toggle jump pads, and choose allowed weapons. Room creator's rules and map are shared with the guest when connecting. Settings are stored in the creator's browser.
+- **Wall-kick movement:** If allowed in the lobby, press **Space in the air close to a wall** to jump away from it; short cooldown prevents spamming. This is a movement boost, not a hit-based collision rebound.
 
-| Управление | Действие |
+## Controls
+
+| Action | Controls |
 | --- | --- |
-| WASD / Shift / Space | Движение / бег / прыжок |
-| Мышь / ЛКМ | Прицел / стрельба |
-| **1** | Трекер — непрерывное ведение цели, 34 DPS |
-| **2** | Тапалка — одиночные выстрелы, 12 урона по телу, 18 по голове, 0,23 с между выстрелами |
-| **3** | Авик — 70 по телу, 100 по голове, 1,55 с между выстрелами |
-| ПКМ | Прицеливание (увеличение, особенно у авика) |
-| M | Включить/отключить звуки |
-| V | Настройка модели оружия, FOV и чувствительности |
-| Esc | Освободить мышь |
+| Move / sprint | WASD / Shift |
+| Aim / shoot | Mouse / left mouse button |
+| Jump or optional wall-kick | Space |
+| Scope the sniper | Hold right mouse button while using sniper |
+| Weapons | 1 tracking beam · 2 semi-auto tap gun · 3 sniper |
+| View model, mouse sensitivity, sniper scope settings | V |
+| Toggle sounds | M |
+| Map Creator — orbit camera | Right mouse + drag |
+| Map Creator — scale selected solid | Drag 3D colored handle |
+| Map Creator — position | Left mouse + drag |
+| Map Creator — zoom | Mouse wheel |
+| Map Creator — undo / redo | Ctrl+Z / Ctrl+Y |
+| Map Creator — duplicate / rotate / delete | Ctrl+D / R / Delete |
 
-Для оружия используются низкополигональные модели без внешних ресурсов. Звуки синтезируются через Web Audio API, трассеры тонкие и полупрозрачные. Это **оригинальные эффекты**, а не скопированные аудиофайлы Kovaak's.
+## Deploy using GitHub Pages
 
-## 3D MAP CREATOR
+Open the repository's **Settings → Pages**. Set Source to **Deploy from a branch**, Branch to **main**, Folder to **/(root)**, then Save. Keep `index.html` in the repository root. The page loads Three.js and PeerJS from public CDNs, so internet is required.
 
-В главном меню выбери **«Создать / изменить карту»**. По умолчанию открывается 3D-обзор **той же самой игровой сцены**.
+Open the same website in both players' browsers. One clicks **Create Room**, shares the six-character code, and the other joins. Direct P2P connectivity is not guaranteed from all NAT/firewall combinations. If a two-player online match fails, test the bot and check browser devtools.
 
-| Управление | Действие |
-| --- | --- |
-| ЛКМ | Выбрать и передвинуть объект, либо поставить выбранный тип |
-| ПКМ + движение | Вращение обзорной камеры в 3D |
-| Колесо | Приближение и удаление 3D-камеры |
-| 3D ВИД / СВЕРХУ 2D | Переключить вид без потери правок |
-| 1–9 | Выбрать тип объекта или точку появления |
-| R / Delete / Ctrl+D | Поворот / удаление / дублирование |
-| Ctrl+Z / Ctrl+Y | Отмена / повтор |
+## Security and networking caveat
 
-Доступны стены, укрытия, низкие блоки, колонны, платформы, джамп-пады и точки появления. Можно менять размеры, высоту и цвет объекта; использовать шаблоны (классика, пустая, симметричная и джамп-паркур); тестировать с ботом; сохранять карту в браузере и импортировать/экспортировать JSON. Старые карты 3.0 сохраняют совместимость.
+The 1v1 P2P host is the provisional match coordinator, **not a trusted anti-cheat server**. Do not treat room codes as account passwords, and do not add credentials, API secrets, or private tokens to the static HTML or repository. A future public release with profiles, saved stats, and dependable competitive matchmaking requires a dedicated backend with strong credential storage, validation and security controls.
 
-Карта хранится в **localStorage конкретного браузера** (а не на сервере). Для переноса или резервной копии используй JSON.
+## Roadmap
 
-## Запуск и публикация
+1. Authoritative server with multiplayer rooms for 2–4 players, team assignment and state synchronization.
+2. Secure accounts and database-backed performance metrics (accuracy, rounds, victories) and a leaderboard.
+3. Better networking: interpolation, lag compensation, matchmaking settings and reliable lobby joining.
+4. Custom terrain height editing, more flexible 3D gizmos, user map sharing and browser-safe presets.
+5. Cosmetics: low-poly skins, sound effects, taunts and expressions.
 
-В репозитории основной файл — `index.html`. GitHub Pages: **Settings → Pages → Deploy from a branch → main / (root)**. Three.js и PeerJS подгружаются через CDN, поэтому для запуска требуется доступ к интернету.
-
-## Следующие этапы
-
-1. **Настоящий редактор рельефа**: высоты земли, кисть, наклоны, надёжные столкновения, навигация ИИ и безопасный формат карты.
-2. **Серверная модель матчей**: фиксированный tick-rate, проверка попаданий на сервере, измерение ping и компенсация задержки. Полное «выравнивание пинга» невозможно; нужно честно проектировать сетевую модель.
-3. **Аккаунты и лидерборд**: отдельный backend и база данных; надёжные хеши паролей, HTTPS, rate limiting и серверное подтверждение статистики.
-4. **Косметика**: низкополигональные скины, насмешки, голосовые фразы, косметические эффекты, разделение ассетов и настроек.
-
-GitHub Pages обслуживает только статический клиент. **Нельзя хранить пароли и секреты в JS/HTML или в публичном репозитории**.
+Files: `index.html` is currently the entire prototype client. Future refactors will split client, server and shared game systems.
