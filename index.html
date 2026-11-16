@@ -1,0 +1,769 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TRACK DUEL 3.0 — Map Creator & 1v1</title>
+<style>
+:root{color-scheme:dark;--accent:#56f2cf;--pink:#ff6985;--dark:#080d18;--dim:#9aacbf}
+*{box-sizing:border-box}html,body{height:100%;margin:0;overflow:hidden;background:var(--dark);font-family:Inter,system-ui,-apple-system,Segoe UI,Arial,sans-serif;color:#f4faff;user-select:none}
+button,input{font:inherit}button{cursor:pointer}canvas{display:block}#game{position:fixed;inset:0}
+#overlay{position:fixed;inset:0;z-index:20;display:grid;place-items:center;background:radial-gradient(ellipse at 50% 28%,#182d42ed,#050911fa 72%);padding:20px;overflow:auto}#overlay.hidden{display:none}
+.shell{width:min(620px,100%);background:#0d1725f5;border:1px solid #354b5d;border-radius:18px;padding:30px;box-shadow:0 30px 110px #0009}
+.brand{color:var(--accent);letter-spacing:.26em;font-size:11px;font-weight:900}.title{font-size:clamp(38px,7vw,60px);font-weight:950;letter-spacing:-.065em;line-height:1;margin:9px 0 0}.title span{color:var(--accent)}
+.sub{font-size:14px;color:#9eb0c8;line-height:1.65;margin:15px 0 24px}.actions{display:grid;gap:11px}.btn{color:#eaf9ff;border:1px solid #405773;background:#1a2a3c;border-radius:10px;padding:14px 16px;font-weight:800;font-size:13px;letter-spacing:.018em;transition:background .13s}.btn:hover{background:#263e56}.btn.primary{background:var(--accent);border-color:var(--accent);color:#06211b}.btn.primary:hover{background:#a1ffe9}
+.join{display:flex;gap:10px}.join input{min-width:0;flex:1;background:#08131f;border:1px solid #3b5168;border-radius:9px;color:#f8ffff;outline:none;padding:10px 13px;letter-spacing:.11em;font-weight:850;text-transform:uppercase}.join input:focus{border-color:var(--accent)}
+.mini{font-size:12px;color:#91a7b8;line-height:1.55}.divider{height:1px;background:#2a3c50;margin:20px 0}.help{display:flex;flex-wrap:wrap;gap:8px 15px;font-size:11px;color:#8d9eb6}.help b{color:#fff}.status{min-height:20px;margin-top:12px;font-size:12px;color:#ffd497}.room{display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid #31594f;border-radius:9px;background:#112e28;padding:13px;margin:14px 0}.code{color:var(--accent);font-weight:900;font-size:27px;letter-spacing:.16em}.copy{background:#205345;color:white;border:1px solid #498b71;border-radius:6px;padding:9px 12px}.hide{display:none!important}
+#hud{display:none;position:fixed;inset:0;z-index:6;pointer-events:none}#hud.on{display:block}.bars{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;padding:19px 24px}.health{width:min(30vw,360px)}.health.right{text-align:right}.barhead{display:flex;justify-content:space-between;font-size:12px;letter-spacing:.11em;font-weight:850;margin-bottom:7px}.health.right .barhead{flex-direction:row-reverse}.track{height:12px;border:1px solid #4b5d6a;border-radius:4px;background:#1b2b39;overflow:hidden}.fill{width:100%;height:100%;background:linear-gradient(90deg,#1bbda5,#95ffe0);transition:width .09s linear}.right .fill{background:linear-gradient(90deg,#ffb371,#ff537b);margin-left:auto}
+.score{font-size:30px;font-weight:950;text-align:center;line-height:1;white-space:nowrap;font-variant-numeric:tabular-nums}.score small{display:block;font-size:10px;letter-spacing:.16em;color:#a1b6c9;margin-top:9px}
+#cross{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:28px;height:28px}#cross:before,#cross:after{content:'';position:absolute;background:#e4faff;box-shadow:0 0 5px #000;opacity:.95}#cross:before{width:2px;height:18px;left:13px;top:5px}#cross:after{width:18px;height:2px;left:5px;top:13px}#cross.hit:before,#cross.hit:after{background:#ffdf64}
+#centerMessage{position:absolute;top:30%;left:0;right:0;text-align:center;font-size:clamp(22px,4vw,38px);font-weight:950;text-shadow:0 3px 14px #000;letter-spacing:.05em}
+#bottom{position:absolute;left:5%;right:5%;bottom:16px;text-align:center;color:#aac0d1;font-size:11px;text-shadow:0 1px 6px #000;line-height:1.5}#shoot{position:absolute;bottom:59px;left:0;right:0;text-align:center;color:var(--accent);font-size:12px;font-weight:900;letter-spacing:.11em}#mode{position:absolute;left:24px;top:78px;font-size:11px;color:#b2c8d9}#conn{position:absolute;right:24px;top:78px;font-size:11px;color:#b2c8d9}#dps{position:absolute;left:50%;top:105px;transform:translateX(-50%);font-size:14px;font-weight:900;color:#ffe98a}
+#endControls{position:absolute;bottom:115px;left:0;right:0;display:none;justify-content:center;gap:12px;pointer-events:auto}
+#unlock{display:none;position:absolute;inset:0;place-items:center;pointer-events:auto;cursor:pointer;background:#07111b9e;font-weight:850;font-size:20px;letter-spacing:.05em}#unlock.on{display:grid}
+#damage{position:fixed;inset:0;pointer-events:none;z-index:5;box-shadow:inset 0 0 130px 30px transparent;transition:box-shadow .14s}#damage.pain{box-shadow:inset 0 0 130px 30px #e72a3e76}
+#settings{display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(390px,calc(100vw - 30px));max-height:calc(100vh - 40px);overflow:auto;pointer-events:auto;background:#0b1827f9;border:1px solid #4c7184;border-radius:14px;padding:22px;z-index:9;box-shadow:0 30px 90px #000d}#settings.open{display:block}#settings h2{margin:0 0 6px;font-size:21px;letter-spacing:-.03em}#settings p{margin:0 0 16px;font-size:12px;line-height:1.45;color:#a7bccf}
+.rangeRow{display:block;margin:13px 0;font-size:12px;font-weight:750}.rangeRow .rangeHead{display:flex;justify-content:space-between;margin-bottom:5px}.rangeRow output{color:#5df4d2;font-variant-numeric:tabular-nums}input[type=range]{display:block;width:100%;accent-color:#55efce;cursor:pointer}#closeSettings{margin-top:11px;width:100%}
+#settingsHint{position:absolute;right:24px;bottom:16px;color:#96bdc6;font-size:10px}
+#padTip{position:absolute;top:122px;right:24px;font-size:11px;color:#67f4f9;font-weight:850}
+@media(max-width:620px){.shell{padding:20px}.bars{gap:7px;padding:15px 10px}.health{width:36vw}.barhead{font-size:9px}.score{font-size:23px}#bottom{font-size:10px}#settingsHint{display:none}#conn,#mode{top:66px;font-size:9px}#mode{left:10px}#conn{right:10px}#padTip{top:98px;right:10px}}
+
+/* Creator mode */
+#mapEditor{position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;background:linear-gradient(145deg,#0a111d,#102536 70%,#07131e);font-size:13px;color:#e8f7ff}
+#mapEditor.hide{display:none!important}
+.editorTop{padding:14px 22px;border-bottom:1px solid #294254;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;background:#0b1825e8}
+.editorTop .editorBrand{font-size:20px;font-weight:950;letter-spacing:-.04em}.editorBrand span{color:#56f2cf}
+.editorTop .tag{font-size:10px;color:#7faaba;letter-spacing:.12em;font-weight:900}
+.editorTop .topActions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.editorTop button,.editorPanel button,.editorFoot button{font-size:11px;padding:10px 12px}
+#mapName{min-width:120px;max-width:200px;background:#101e2e;border:1px solid #34536a;border-radius:8px;color:#fff;padding:10px;font-size:12px;font-weight:750}
+.editorBody{display:grid;grid-template-columns:207px minmax(280px,1fr) 249px;min-height:0;flex:1;gap:12px;padding:13px;overflow:hidden}
+.editorPanel{border:1px solid #2c4557;background:#0f2030;border-radius:12px;padding:14px;overflow-y:auto;min-height:0}
+.editorPanel h3{margin:0 0 12px;color:#c4e8eb;font-size:12px;letter-spacing:.12em;text-transform:uppercase}
+.editorPanel .tiny{font-size:11px;color:#8daabb;line-height:1.5}
+.tool{width:100%;border:1px solid #2a485b;background:#182e41;border-radius:9px;color:#d0e8f4;display:flex;align-items:center;justify-content:space-between;text-align:left;gap:8px;margin:5px 0;padding:11px!important}
+.tool.active{background:#17473f;border-color:#56f2cf;color:#baffef;box-shadow:inset 0 0 0 1px #56f2cf44}
+.tool .toolKey{font-size:10px;color:#8faabc;border:1px solid #426075;padding:2px 5px;border-radius:5px;min-width:19px;text-align:center}
+.tool.active .toolKey{border-color:#47b29c;color:#9bffdf}
+.editorStage{min-width:0;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px solid #314a5b;background:radial-gradient(ellipse,#163044,#0a1724);border-radius:12px;overflow:hidden;padding:10px;gap:10px}
+#editorCanvas{display:block;width:auto;max-width:100%;max-height:calc(100% - 36px);height:auto;aspect-ratio:13/10;object-fit:contain;border:1px solid #517080;border-radius:6px;cursor:crosshair;touch-action:none;box-shadow:0 16px 60px #0007}
+#editorStatus{color:#83e7cf;font-size:11px;min-height:16px;text-align:center;max-width:95%;line-height:1.35}
+.editorLine{height:1px;background:#2a4657;margin:13px 0}
+.editorField{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:10px 0;color:#b4c9d4;font-size:11px}
+.editorField input:not([type=checkbox]):not([type=color]),.editorField select{width:105px;background:#0b1624;border:1px solid #365267;border-radius:7px;color:white;padding:8px;outline:none}
+.editorField input[type=color]{width:50px;height:32px;padding:1px;border:1px solid #38576b;border-radius:6px;background:transparent;cursor:pointer}
+.editorField input[type=checkbox]{accent-color:#51e8c9}
+.editorFoot{border-top:1px solid #294254;background:#0b1825;display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between;align-items:center;padding:10px 17px}
+.editorFoot .legend{font-size:11px;color:#93afbf}.editorFoot .fileControls{display:flex;gap:7px;flex-wrap:wrap}
+.editorFoot .fileControls input{display:none}
+#editorSelection{font-size:12px;color:#62f7d1;font-weight:900;margin-bottom:12px}
+#editorObjectProps.hide{display:none!important}
+.edButtons{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0}
+.edButtons button{flex:1;white-space:nowrap}
+.editorDanger{border-color:#7d4653!important;color:#ffb4c0!important;background:#361e2b!important}
+.editorSmallBadge{display:inline-block;padding:4px 8px;border:1px solid #426273;border-radius:6px;color:#9cbbcb;font-size:10px}
+@media(max-width:940px){.editorBody{grid-template-columns:160px minmax(240px,1fr) 190px;gap:6px;padding:6px}.editorPanel{padding:9px}.editorTop{padding:9px}.editorTop .editorBrand{font-size:16px}.editorFoot{padding:8px}.editorFoot .legend{display:none}}
+@media(max-width:680px){.editorBody{display:flex;flex-direction:column;overflow-y:auto}.editorPanel{overflow:visible}.editorTools{order:1}.editorStage{order:0;min-height:260px}.editorProps{order:2}#editorCanvas{width:min(100%,520px);height:auto;max-height:none}.editorTop{max-height:150px;overflow:auto}.editorFoot{justify-content:center}}
+</style>
+</head>
+<body>
+<div id="game"></div><div id="damage"></div>
+<div id="hud">
+  <div class="bars">
+    <div class="health"><div class="barhead"><span>ТЫ</span><span id="myhp">100 HP</span></div><div class="track"><div class="fill" id="myfill"></div></div></div>
+    <div class="score"><span id="myScore">0</span> : <span id="oppScore">0</span><small id="roundLabel">РАУНД 1</small></div>
+    <div class="health right"><div class="barhead"><span id="oppName">СОПЕРНИК</span><span id="enemyhp">100 HP</span></div><div class="track"><div class="fill" id="enemyfill"></div></div></div>
+  </div>
+  <div id="mode">TRACK DUEL 3.0</div><div id="conn"></div>
+  <div id="cross"></div><div id="centerMessage"></div><div id="dps"></div><div id="padTip"></div>
+  <div id="shoot">УДЕРЖИВАЙ ЛКМ НА ЦЕЛИ</div>
+  <div id="bottom">WASD — движение · SHIFT — бег · ПРОБЕЛ — прыжок · V — настройки · ESC — курсор</div>
+  <div id="settingsHint">V — ОРУЖИЕ / ПРИЦЕЛ</div>
+  <div id="endControls"><button class="btn primary" id="again">РЕВАНШ</button><button class="btn" id="leave">В МЕНЮ</button></div>
+  <div id="unlock">КЛИКНИ, ЧТОБЫ ВЕРНУТЬСЯ В ИГРУ</div>
+  <section id="settings">
+    <h2>Настройка вида</h2><p>Меняй размер и положение оружия без перезапуска. Значения сохраняются в браузере. Нажми V для выхода.</p>
+    <label class="rangeRow"><span class="rangeHead">Размер оружия <output id="sizeValue"></output></span><input type="range" id="sizeSetting" min="0.60" max="1.22" step="0.01"></label>
+    <label class="rangeRow"><span class="rangeHead">Вправо / влево <output id="sideValue"></output></span><input type="range" id="sideSetting" min="0.14" max="0.55" step="0.01"></label>
+    <label class="rangeRow"><span class="rangeHead">Высота <output id="heightValue"></output></span><input type="range" id="heightSetting" min="-0.52" max="-0.17" step="0.01"></label>
+    <label class="rangeRow"><span class="rangeHead">Удалённость <output id="depthValue"></output></span><input type="range" id="depthSetting" min="-0.94" max="-0.30" step="0.01"></label>
+    <label class="rangeRow"><span class="rangeHead">Чувствительность мыши <output id="sensValue"></output></span><input type="range" id="sensSetting" min="0.08" max="0.40" step="0.01"></label>
+    <label class="rangeRow"><span class="rangeHead">Поле зрения (FOV) <output id="fovValue"></output></span><input type="range" id="fovSetting" min="65" max="105" step="1"></label>
+    <button class="btn primary" id="closeSettings">СОХРАНИТЬ И ИГРАТЬ</button>
+  </section>
+</div>
+<div id="overlay"><div class="shell">
+  <div class="brand">MULTIPLAYER AIM TRAINER · V3 / MAP CREATOR</div>
+  <h1 class="title">TRACK<span>.</span>DUEL</h1>
+  <p class="sub">Создавай собственную арену: стены, укрытия, платформы, джамп-пады и точки появления. Тренируй трекинг с ботом или отправь другу код комнаты — он получит твою карту автоматически.</p>
+  <div id="mainActions" class="actions">
+    <button class="btn primary" id="host">СОЗДАТЬ КОМНАТУ ДЛЯ ДРУГА</button>
+    <div class="join"><input id="codeInput" maxlength="6" placeholder="КОД КОМНАТЫ" autocomplete="off" spellcheck="false"><button class="btn" id="join">ВОЙТИ</button></div>
+    <button class="btn" id="bot">ИГРАТЬ С БОТОМ</button>
+    <button class="btn" id="openEditor" style="border-color:#367e75;color:#8ff9df">✦ СОЗДАТЬ / ИЗМЕНИТЬ КАРТУ</button>
+  </div>
+  <div id="hostWait" class="hide"><div class="room"><div><div class="mini">КОД КОМНАТЫ</div><div class="code" id="roomCode">······</div></div><button class="copy" id="copy">КОПИРОВАТЬ</button></div><p class="mini">Откройте оба версию 3.0. Карта создателя комнаты передаётся другу автоматически. Интернет нужен для Three.js и PeerJS.</p><button class="btn" id="cancel">ОТМЕНИТЬ</button></div>
+  <div class="status" id="status"></div>
+  <div class="divider"></div>
+  <div class="help"><span><b>WASD</b> движение</span><span><b>МЫШЬ</b> трекинг</span><span><b>ЛКМ</b> урон</span><span><b>SPACE</b> прыжок</span><span><b>ГОЛУБЫЕ ПЛАТФОРМЫ</b> джамп-пады</span><span><b>V</b> настройки</span></div>
+</div></div>
+<!-- Map editor lives in the same HTML as the FPS, so it also works on GitHub Pages. -->
+<div id="mapEditor" class="hide" aria-label="Редактор арен">
+  <header class="editorTop">
+    <div><div class="tag">TRACK DUEL / WORKSHOP</div><div class="editorBrand">MAP <span>CREATOR</span> <small class="editorSmallBadge">3.0</small></div></div>
+    <div class="topActions">
+      <input id="mapName" maxlength="36" value="Моя арена" aria-label="Название карты">
+      <button class="btn" id="mapSave">СОХРАНИТЬ</button>
+      <button class="btn primary" id="mapTest">▶ ТЕСТ С БОТОМ</button>
+      <button class="btn" id="mapDone">В МЕНЮ</button>
+    </div>
+  </header>
+  <div class="editorBody">
+    <aside class="editorPanel editorTools">
+      <h3>Конструктор</h3>
+      <div id="toolList">
+        <button class="tool active" data-tool="select"><span>↖ Выделить / двигать</span><span class="toolKey">1</span></button>
+        <button class="tool" data-tool="wall"><span>▰ Длинная стена</span><span class="toolKey">2</span></button>
+        <button class="tool" data-tool="cover"><span>▣ Укрытие</span><span class="toolKey">3</span></button>
+        <button class="tool" data-tool="low"><span>▬ Низкий блок</span><span class="toolKey">4</span></button>
+        <button class="tool" data-tool="pillar"><span>▦ Колонна</span><span class="toolKey">5</span></button>
+        <button class="tool" data-tool="platform"><span>▧ Платформа</span><span class="toolKey">6</span></button>
+        <button class="tool" data-tool="pad"><span>◉ Джамп-пад</span><span class="toolKey">7</span></button>
+        <button class="tool" data-tool="spawn0"><span>➊ Спавн игрока 1</span><span class="toolKey">8</span></button>
+        <button class="tool" data-tool="spawn1"><span>➋ Спавн игрока 2</span><span class="toolKey">9</span></button>
+      </div>
+      <div class="editorLine"></div>
+      <h3>Шаблоны</h3>
+      <div class="edButtons"><button class="btn" id="presetClassic">КЛАССИКА</button><button class="btn" id="presetEmpty">ПУСТАЯ</button></div>
+      <button class="btn" id="presetMirrored" style="width:100%">СИММЕТРИЧНАЯ АРЕНА</button>
+      <div class="editorLine"></div>
+      <label class="editorField">Привязка к сетке <input type="checkbox" id="gridSnap" checked></label>
+      <p class="tiny">ЛКМ — поставить или перетащить. ПКМ — выделить объект. R — повернуть. Delete — удалить. Ctrl+Z — отмена.</p>
+    </aside>
+    <main class="editorStage">
+      <canvas id="editorCanvas" width="1040" height="800" aria-label="Вид карты сверху"></canvas>
+      <div id="editorStatus">Выбери объект слева, затем нажми на карту.</div>
+    </main>
+    <aside class="editorPanel editorProps">
+      <h3>Свойства</h3>
+      <div id="editorSelection">НИЧЕГО НЕ ВЫБРАНО</div>
+      <div id="editorObjectProps" class="hide">
+        <label class="editorField">X <input type="number" id="propX" step="0.5"></label>
+        <label class="editorField">Z <input type="number" id="propZ" step="0.5"></label>
+        <div id="solidProps">
+          <label class="editorField">Ширина <input type="number" id="propW" min="0.5" max="25" step="0.5"></label>
+          <label class="editorField">Длина <input type="number" id="propD" min="0.5" max="25" step="0.5"></label>
+          <label class="editorField">Высота <input type="number" id="propH" min="0.3" max="8" step="0.1"></label>
+          <label class="editorField">Цвет <input type="color" id="propColor" value="#3b556b"></label>
+          <div class="edButtons"><button class="btn" id="rotateObject">↻ ПОВЕРНУТЬ</button><button class="btn" id="copyObject">⧉ КОПИЯ</button></div>
+          <button class="btn editorDanger" id="deleteObject" style="width:100%">УДАЛИТЬ ОБЪЕКТ</button>
+        </div>
+      </div>
+      <div class="editorLine"></div>
+      <h3>Обзор карты</h3>
+      <p id="mapStats" class="tiny"></p>
+      <p class="tiny">Размер арены: 52 × 40. Голубые круги — джамп-пады. Зелёная и розовая метки — точки появления игроков.</p>
+      <div class="editorLine"></div>
+      <h3>Полезно</h3>
+      <p class="tiny">Высокая стена полностью закрывает игрока. Низкие укрытия можно перепрыгнуть. На платформы можно приземляться сверху. Джамп-пады подбрасывают вверх.</p>
+    </aside>
+  </div>
+  <footer class="editorFoot">
+    <div class="legend">1–9 инструменты · R поворот · Delete удалить · Ctrl+Z отменить · Ctrl+Y повторить</div>
+    <div class="fileControls">
+      <button class="btn" id="mapUndo">↶ ОТМЕНА</button><button class="btn" id="mapRedo">↷ ПОВТОР</button>
+      <button class="btn" id="mapExport">↓ СКАЧАТЬ JSON</button><button class="btn" id="mapImportButton">↑ ЗАГРУЗИТЬ JSON</button>
+      <input type="file" id="mapImport" accept=".json,application/json">
+    </div>
+  </footer>
+</div>
+<script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
+
+const $ = id => document.getElementById(id);
+const overlay=$('overlay'), hud=$('hud'), center=$('centerMessage'), status=$('status');
+const HALF_X=26, HALF_Z=20, PLAYER_RADIUS=.46, EYE_HEIGHT=1.70;
+const MAP_TYPES=['wall','cover','low','pillar','platform','pad'];
+const MAP_DIMS={wall:[8,1.2,2.8],cover:[3.6,3,1.6],low:[3.5,2.8,.85],pillar:[2,2,4],platform:[5,5,.7],pad:[3.6,3.6,.2]};
+const DEFAULT_MAP={version:1,name:'Классическая арена',spawns:[{x:-10,z:0},{x:10,z:0}],objects:[
+ {type:'wall',x:0,z:-10,w:8,d:1.2,h:1.22},{type:'wall',x:0,z:10,w:8,d:1.2,h:1.22},
+ {type:'cover',x:-16,z:-9,w:3.6,d:3,h:1.6},{type:'cover',x:16,z:9,w:3.6,d:3,h:1.6},
+ {type:'cover',x:-16,z:9,w:3.6,d:3,h:1.6},{type:'cover',x:16,z:-9,w:3.6,d:3,h:1.6},
+ {type:'low',x:0,z:0,w:3.3,d:3.3,h:.85,color:'#365a6b'},
+ {type:'wall',x:-24,z:0,w:1.3,d:5,h:1},{type:'wall',x:24,z:0,w:1.3,d:5,h:1},
+ {type:'pad',x:-20,z:-14},{type:'pad',x:-20,z:14},{type:'pad',x:20,z:-14},{type:'pad',x:20,z:14}
+]};
+function mapNum(value,def,min,max){const n=Number(value);return Number.isFinite(n)?Math.min(max,Math.max(min,n)):def}
+function normalizeMap(raw){
+ if(!raw||typeof raw!=='object'||!Array.isArray(raw.objects))throw Error('Файл не содержит массива objects.');
+ const norm={version:1,name:typeof raw.name==='string'?raw.name.slice(0,36):'Моя арена',spawns:[],objects:[]};
+ for(let i=0;i<2;i++){
+  const s=Array.isArray(raw.spawns)?raw.spawns[i]:null;
+  norm.spawns.push({x:mapNum(s?.x,i===0?-10:10,-HALF_X+2,HALF_X-2),z:mapNum(s?.z,0,-HALF_Z+2,HALF_Z-2)});
+ }
+ const inObjs=raw.objects.slice(0,120);
+ for(let i=0;i<inObjs.length;i++){
+  const v=inObjs[i];if(!v||!MAP_TYPES.includes(v.type))continue;
+  const def=MAP_DIMS[v.type],w=mapNum(v.w,def[0],.5,25),d=mapNum(v.d,def[1],.5,25),h=mapNum(v.h,def[2],.3,8);
+  const x=mapNum(v.x,0,-HALF_X+w/2+.6,HALF_X-w/2-.6);
+  const z=mapNum(v.z,0,-HALF_Z+d/2+.6,HALF_Z-d/2-.6);
+  const color=typeof v.color==='string'&&/^#[0-9a-f]{6}$/i.test(v.color)?v.color:'#3b556b';
+  norm.objects.push({id:i+1,type:v.type,x,z,w,d,h,color});
+ }
+ return norm;
+}
+function loadMap(){try{const saved=localStorage.getItem('trackduel-map-v3');if(saved)return normalizeMap(JSON.parse(saved))}catch{}return normalizeMap(DEFAULT_MAP)}
+let activeMap=loadMap(),nextObjectId=1;
+function allocateId(){return nextObjectId++}
+function resetObjectId(){nextObjectId=Math.max(1,...activeMap.objects.map(o=>o.id+1))}
+resetObjectId();
+const spawn = () => activeMap.spawns.map((v,i)=>({x:v.x,y:0,z:v.z,yaw:i===0?-Math.PI/2:Math.PI/2,pitch:0,vy:0,fire:false,padCooldown:0}));
+let p=spawn(),hp=[100,100],me=0,op=1,round=1,myScore=0,oppScore=0;
+let role='none',bot=false,started=false,ended=false,locked=false,settingsOpen=false;
+let peer=null,conn=null,myRematch=false,otherRematch=false;
+let mouseDown=false, keys=Object.create(null), last=performance.now(), sendAcc=0, syncAcc=0;
+let roundLock=0,transition=0,lastHitFx=0,lastHp=100, padFxUntil=0;
+
+const defaults={size:.83,side:.35,height:-.34,depth:-.56,sens:.21,fov:78};
+const settings={...defaults};
+try {const saved=JSON.parse(localStorage.getItem('trackduel-v2-settings')||'{}');
+  for(const k of Object.keys(defaults))if(Number.isFinite(saved[k])) settings[k]=saved[k];
+}catch{}
+const settingRefs=[
+  ['size','sizeSetting','sizeValue',x=>x.toFixed(2)+'×'],
+  ['side','sideSetting','sideValue',x=>x.toFixed(2)],
+  ['height','heightSetting','heightValue',x=>x.toFixed(2)],
+  ['depth','depthSetting','depthValue',x=>x.toFixed(2)],
+  ['sens','sensSetting','sensValue',x=>x.toFixed(2)],
+  ['fov','fovSetting','fovValue',x=>x+'°']
+];
+for(const [k,inputId,valueId,fmt] of settingRefs){
+  const input=$(inputId);settings[k]=THREE.MathUtils.clamp(settings[k],Number(input.min),Number(input.max));input.value=settings[k];$(valueId).textContent=fmt(settings[k]);
+  input.addEventListener('input',()=>{settings[k]=Number(input.value);$(valueId).textContent=fmt(settings[k]);camera.fov=settings.fov;camera.updateProjectionMatrix();saveSettings()});
+}
+function saveSettings(){try{localStorage.setItem('trackduel-v2-settings',JSON.stringify(settings))}catch{}}
+
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x0b1625);scene.fog=new THREE.Fog(0x0b1625,32,98);
+const camera=new THREE.PerspectiveCamera(settings.fov,innerWidth/innerHeight,.05,130);camera.rotation.order='YXZ';
+const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=THREE.SRGBColorSpace;
+$('game').appendChild(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0x98d8ff,0x14283b,2.15));
+const sun=new THREE.DirectionalLight(0xffffff,2.35);sun.position.set(-13,24,13);scene.add(sun);
+
+function makeBox(x,y,z,w,h,d,color,metal=.08,roughness=.65,material=null){
+ const obj=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),material||new THREE.MeshStandardMaterial({color,metalness:metal,roughness}));
+ obj.position.set(x,y,z);scene.add(obj);return obj;
+}
+makeBox(0,-.27,0,HALF_X*2+.6,.54,HALF_Z*2+.6,0x152237);
+const grid=new THREE.GridHelper(64,64,0x335471,0x243a52);grid.position.y=.012;scene.add(grid);
+for(const z of [-HALF_Z,HALF_Z])makeBox(0,2.8,z,HALF_X*2,5.6,.55,0x24384a);
+for(const x of [-HALF_X,HALF_X])makeBox(x,2.8,0,.55,5.6,HALF_Z*2,0x24384a);
+for(const x of [-HALF_X+.9,HALF_X-.9])for(const z of [-HALF_Z+.9,HALF_Z-.9]){
+ makeBox(x,4.75,z,.22,.72,.22,0x49e9c7);
+ const light=new THREE.PointLight(0x37d6c9,8,14);light.position.set(x,4.4,z);scene.add(light);
+}
+for(let x=-23;x<=23;x+=7.6)for(const z of [-HALF_Z+.45,HALF_Z-.45])makeBox(x,3.18,z,.9,.1,.15,0x3fbaa9,.35,.4);
+
+const obstacles=[], pads=[], mapMeshes=[];
+function mapMesh(m){mapMeshes.push(m);return m}
+function cover(x,z,w,d,h,color=0x3b556b,type='cover'){
+ const obj=mapMesh(makeBox(x,h/2,z,w,h,d,color,.22,.55));
+ obstacles.push({x,z,w,d,h,mesh:obj});
+ mapMesh(makeBox(x,h+.047,z,w,.09,d,0x64849b,.18,.5));
+ if(type!=='platform'){
+   mapMesh(makeBox(x,h*.45,z+d/2+.02,w,.07,.04,0x55e9d0,.1,.4));
+   if(w>2.5)mapMesh(makeBox(x,h*.6,z-d/2-.02,w*.45,.06,.04,0x273444,.2,.6));
+ }
+ return obj;
+}
+function jumpPad(x,z){
+ const base=new THREE.Mesh(new THREE.CylinderGeometry(1.8,1.92,.14,8),new THREE.MeshStandardMaterial({color:0x0a5661,metalness:.65,roughness:.22}));
+ base.position.set(x,.095,z);scene.add(base);mapMesh(base);
+ const ring=new THREE.Mesh(new THREE.TorusGeometry(1.3,.11,6,30),new THREE.MeshBasicMaterial({color:0x60efff,transparent:true,opacity:.85}));ring.position.set(x,.185,z);ring.rotation.x=-Math.PI/2;scene.add(ring);mapMesh(ring);
+ const disk=new THREE.Mesh(new THREE.CylinderGeometry(.99,.99,.15,8),new THREE.MeshStandardMaterial({color:0x2aa7b7,emissive:0x09879c,emissiveIntensity:.55,metalness:.3}));disk.position.set(x,.17,z);scene.add(disk);mapMesh(disk);
+ const arrow=new THREE.Mesh(new THREE.ConeGeometry(.48,.8,4),new THREE.MeshBasicMaterial({color:0xc5ffff}));arrow.position.set(x,.26,z);arrow.rotation.x=Math.PI/2;scene.add(arrow);mapMesh(arrow);
+ pads.push({x,z,ring});
+}
+function rebuildArena(){
+ for(const m of mapMeshes){scene.remove(m);m.geometry?.dispose();if(Array.isArray(m.material))m.material.forEach(v=>v.dispose());else m.material?.dispose()}
+ mapMeshes.length=0;obstacles.length=0;pads.length=0;
+ for(const o of activeMap.objects){
+  if(o.type==='pad')jumpPad(o.x,o.z);
+  else cover(o.x,o.z,o.w,o.d,o.h,new THREE.Color(o.color),o.type);
+ }
+}
+function loadIntoArena(raw){activeMap=normalizeMap(raw);resetObjectId();rebuildArena();}
+rebuildArena();
+
+function makeAvatar(color){
+ const root=new THREE.Group(),bodyMat=new THREE.MeshStandardMaterial({color,roughness:.53,metalness:.22,emissive:color,emissiveIntensity:.10});
+ const body=new THREE.Mesh(new THREE.CapsuleGeometry(.49,.91,6,12),bodyMat);body.position.y=1.17;root.add(body);
+ const head=new THREE.Mesh(new THREE.SphereGeometry(.305,16,12),new THREE.MeshStandardMaterial({color:0xe9f5ff,metalness:.12,roughness:.5}));head.position.y=2.22;root.add(head);
+ const band=new THREE.Mesh(new THREE.TorusGeometry(.59,.03,6,28),new THREE.MeshBasicMaterial({color}));band.position.y=.035;band.rotation.x=Math.PI/2;root.add(band);
+ scene.add(root);return root;
+}
+const enemyMesh=makeAvatar(0xff6b88);
+const nameCanvas=document.createElement('canvas');nameCanvas.width=256;nameCanvas.height=64;
+const nameCtx=nameCanvas.getContext('2d');nameCtx.fillStyle='#ffffff';nameCtx.font='900 27px Arial';nameCtx.textAlign='center';nameCtx.fillText('TARGET',128,41);
+const nameSprite=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(nameCanvas),depthTest:false,transparent:true}));
+nameSprite.scale.set(2.6,.65,1);nameSprite.position.y=3.04;enemyMesh.add(nameSprite);
+const enemyVisual={x:START_X,z:0,y:0,yaw:Math.PI/2};
+
+// Short, articulated carbine / SMG instead of the old box-like "sausage".
+const gun=new THREE.Group();camera.add(gun);scene.add(camera);
+const gunSteel=new THREE.MeshStandardMaterial({color:0x263441,metalness:.68,roughness:.34});
+const gunShell=new THREE.MeshStandardMaterial({color:0x495c70,metalness:.58,roughness:.36});
+const gunBlack=new THREE.MeshStandardMaterial({color:0x131f2d,metalness:.56,roughness:.37});
+const gunGlow=new THREE.MeshStandardMaterial({color:0x45f4d6,metalness:.34,roughness:.32,emissive:0x22d5c0,emissiveIntensity:.65});
+function part(w,h,d,x,y,z,mat){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);m.position.set(x,y,z);gun.add(m);return m}
+part(.255,.20,.56,0,0,-.33,gunShell);              // receiver
+part(.235,.11,.27,0,.115,-.25,gunSteel);            // rear upper housing
+part(.21,.12,.36,0,-.015,-.64,gunSteel);            // handguard
+part(.19,.145,.16,0,-.014,-.83,gunBlack);           // muzzle shroud
+part(.115,.104,.17,0,-.008,-.91,gunGlow);          // emitter
+part(.13,.23,.14,0,-.226,-.26,gunBlack);           // angular pistol grip
+part(.23,.095,.22,0,-.065,.025,gunBlack);          // stock
+part(.105,.165,.13,0,-.105,.065,gunSteel);         // stock hinge
+part(.115,.14,.19,0,-.185,-.48,gunSteel);          // foregrip
+part(.08,.07,.30,0,.139,-.41,gunBlack);            // top rail
+part(.15,.08,.085,0,.19,-.28,gunGlow);             // compact optic
+part(.23,.038,.27,0,.037,-.64,gunGlow);            // accent side
+part(.045,.045,.28,.137,.02,-.35,gunGlow);          // right-side power line
+part(.045,.045,.23,-.137,.02,-.40,gunGlow);
+const muzzleFlash=new THREE.Mesh(new THREE.SphereGeometry(.14,8,6),new THREE.MeshBasicMaterial({color:0x89fff2,transparent:true,opacity:.9}));muzzleFlash.position.set(0,0,-1.005);gun.add(muzzleFlash);muzzleFlash.visible=false;
+
+const beam=new THREE.Mesh(new THREE.CylinderGeometry(.012,.012,1,6),new THREE.MeshBasicMaterial({color:0x8affdf,transparent:true,opacity:.65,depthWrite:false}));scene.add(beam);beam.visible=false;
+const beamUp=new THREE.Vector3(0,1,0);
+let bob=0,lastBeam=0,visualRecoil=0;
+
+function safeSend(o){if(conn?.open)try{conn.send(o)}catch{}}
+function alertMsg(s){status.textContent=s}
+function roomId(){const letters='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';return Array.from({length:6},()=>letters[(Math.random()*letters.length)|0]).join('')}
+function cleanup(){try{conn?.close()}catch{}try{peer?.destroy()}catch{}conn=peer=null}
+function hideSettings(){settingsOpen=false;$('settings').classList.remove('open');refreshUnlock()}
+function openSettings(){if(!started||ended)return;settingsOpen=true;mouseDown=false;document.exitPointerLock?.();$('settings').classList.add('open');refreshUnlock()}
+function toggleSettings(){if(settingsOpen){hideSettings();tryLock()}else openSettings()}
+function refreshUnlock(){locked=document.pointerLockElement===renderer.domElement;$('unlock').classList.toggle('on',started&&!ended&&!locked&&!settingsOpen)}
+function tryLock(){if(started&&!ended&&!settingsOpen)renderer.domElement.requestPointerLock?.().catch(()=>{})}
+function resetPose(){p=spawn();hp=[100,100];lastHp=100;roundLock=performance.now()+1250;transition=0;mouseDown=false;for(const k in keys)keys[k]=false;
+ enemyVisual.x=p[op].x;enemyVisual.y=p[op].y;enemyVisual.z=p[op].z;enemyVisual.yaw=p[op].yaw;refreshHud();}
+function refreshHud(){
+ $('myhp').textContent=Math.ceil(hp[me])+' HP';$('enemyhp').textContent=Math.ceil(hp[op])+' HP';
+ $('myfill').style.width=Math.max(0,hp[me])+'%';$('enemyfill').style.width=Math.max(0,hp[op])+'%';
+ $('myScore').textContent=myScore;$('oppScore').textContent=oppScore;$('roundLabel').textContent='РАУНД '+round;
+}
+function begin(which){
+ role=which;me=which==='guest'?1:0;op=1-me;bot=which==='bot';started=true;ended=false;
+ overlay.classList.add('hidden');hud.classList.add('on');$('oppName').textContent=bot?'БОТ':'СОПЕРНИК';
+ $('mode').textContent=(bot?'TRACK DUEL 3.0 / BOT':'TRACK DUEL 3.0 / ONLINE 1V1')+' · '+activeMap.name.slice(0,22);$('conn').textContent=bot?'LOCAL':'ONLINE';
+ $('endControls').style.display='none';$('again').style.display='';hideSettings();
+ round=1;myScore=0;oppScore=0;myRematch=otherRematch=false;resetPose();center.textContent='КЛИКНИ ДЛЯ ИГРЫ';refreshUnlock();tryLock();
+}
+function home(){
+ cleanup();started=false;ended=false;role='none';bot=false;mouseDown=false;hideSettings();document.exitPointerLock?.();
+ overlay.classList.remove('hidden');hud.classList.remove('on');$('mainActions').classList.remove('hide');$('hostWait').classList.add('hide');
+ loadIntoArena(loadMap());alertMsg('');
+}
+$('host').onclick=()=>{
+ if(!window.Peer){alertMsg('PeerJS не загрузился. Проверь интернет и обнови страницу.');return}
+ cleanup();alertMsg('Подключаемся к серверу комнат…');const code=roomId();
+ peer=new Peer('trackduel3-'+code.toLowerCase());
+ peer.on('open',()=>{$('mainActions').classList.add('hide');$('hostWait').classList.remove('hide');$('roomCode').textContent=code;alertMsg('Ожидаем друга…')});
+ peer.on('connection',c=>{if(conn){c.close();return}conn=c;bindConnection()});
+ peer.on('error',e=>{if(e.type==='unavailable-id'){cleanup();$('host').click();return}alertMsg('Ошибка соединения: '+e.type)});
+};
+$('join').onclick=()=>{
+ const code=$('codeInput').value.trim().toLowerCase();
+ if(!/^[abcdefghjklmnpqrstuvwxyz23456789]{6}$/.test(code)){alertMsg('Введи шестизначный код комнаты.');return}
+ if(!window.Peer){alertMsg('PeerJS не загрузился. Проверь интернет.');return}
+ cleanup();alertMsg('Подключаемся к комнате '+code.toUpperCase()+'…');
+ peer=new Peer();peer.on('open',()=>{conn=peer.connect('trackduel3-'+code,{reliable:false});bindConnection()});
+ peer.on('error',e=>alertMsg('Не удалось подключиться: '+e.type));
+};
+function bindConnection(){
+ conn.on('open',()=>{
+   alertMsg('Соединение установлено!');
+   if(peer?.id?.startsWith('trackduel3-')){begin('host');safeSend({t:'start',map:activeMap})}
+   else alertMsg('Соединение есть. Получаем карту от создателя…');
+ });
+ conn.on('data',handleData);
+ conn.on('close',()=>{if(started){center.textContent='ДРУГ ОТКЛЮЧИЛСЯ';ended=true;document.exitPointerLock?.();$('endControls').style.display='flex';$('again').style.display='none'}else alertMsg('Соединение закрыто')});
+ conn.on('error',()=>alertMsg('Ошибка канала связи'));
+}
+$('bot').onclick=()=>begin('bot');$('cancel').onclick=home;$('leave').onclick=home;
+$('copy').onclick=()=>navigator.clipboard?.writeText($('roomCode').textContent).then(()=>{$('copy').textContent='СКОПИРОВАНО';setTimeout(()=>$('copy').textContent='КОПИРОВАТЬ',1400)}).catch(()=>{alertMsg('Выдели код и скопируй вручную')});
+$('again').onclick=()=>{
+ if(bot){myScore=oppScore=0;round=1;ended=false;$('endControls').style.display='none';resetPose();tryLock()}
+ else{myRematch=true;safeSend({t:'rematch'});center.textContent='ОЖИДАЕМ ДРУГА…';if(otherRematch&&role==='host')startRematch()}
+};
+$('closeSettings').onclick=()=>{hideSettings();tryLock()};
+let lastEnemyPose=performance.now();
+function handleData(d){
+ if(!d||typeof d!=='object')return;
+ if(d.t==='pose'&&started&&!ended){
+   const q=p[op];for(const k of ['x','z','y','yaw','pitch'])if(Number.isFinite(d[k]))q[k]=d[k];
+   q.fire=!!d.fire;lastEnemyPose=performance.now();
+ }
+ if(d.t==='sync'&&role==='guest'&&started){
+   if(!Array.isArray(d.hp)||!Array.isArray(d.score))return;
+   if(d.reset){round=d.round;myScore=d.score[1];oppScore=d.score[0];ended=false;$('endControls').style.display='none';resetPose();}
+   hp=[Math.max(0,Number(d.hp[0])||0),Math.max(0,Number(d.hp[1])||0)];
+   myScore=d.score[1];oppScore=d.score[0];round=d.round;
+   if(d.winner!==undefined&&d.winner!==null)finishRound(d.winner,d.match);
+   if(lastHp>hp[me]+.3){lastHitFx=performance.now()}lastHp=hp[me];refreshHud();
+ }
+ if(d.t==='rematch'){otherRematch=true;if(myRematch&&role==='host')startRematch()}
+ if(d.t==='start'&&!started&&role==='none'){
+    if(d.map){try{loadIntoArena(d.map)}catch(e){alertMsg('Карта повреждена: '+e.message);return}}
+    begin('guest');
+  }
+}
+function startRematch(){if(role!=='host')return;
+ myScore=oppScore=0;round=1;ended=false;myRematch=otherRematch=false;
+ $('endControls').style.display='none';resetPose();safeSend({t:'sync',hp,score:[0,0],round,reset:true});tryLock();
+}
+function facing(q){return new THREE.Vector3(-Math.sin(q.yaw)*Math.cos(q.pitch),Math.sin(q.pitch),-Math.cos(q.yaw)*Math.cos(q.pitch))}
+function raySphere(origin,dir,center,r){
+ const ax=origin.x-center.x,ay=origin.y-center.y,az=origin.z-center.z;
+ const b=ax*dir.x+ay*dir.y+az*dir.z,c=ax*ax+ay*ay+az*az-r*r;
+ const d=b*b-c;if(d<0)return Infinity;const root=Math.sqrt(d);const near=-b-root,far=-b+root;
+ return near>0?near:(far>0?far:Infinity);
+}
+function rayCoverDistance(origin,dir,c,maxDist){
+ // Slab test against solid cover AABB; ignores contact at the surface.
+ const min=[c.x-c.w/2,.001,c.z-c.d/2],max=[c.x+c.w/2,c.h,c.z+c.d/2],o=[origin.x,origin.y,origin.z],v=[dir.x,dir.y,dir.z];
+ let tMin=0,tMax=maxDist;
+ for(let i=0;i<3;i++){
+   if(Math.abs(v[i])<1e-8){if(o[i]<min[i]||o[i]>max[i])return Infinity}
+   else{let a=(min[i]-o[i])/v[i],b=(max[i]-o[i])/v[i];if(a>b)[a,b]=[b,a];tMin=Math.max(tMin,a);tMax=Math.min(tMax,b);if(tMin>tMax)return Infinity}
+ }
+ return tMin>0&&tMin<maxDist?tMin:Infinity;
+}
+function shotDistance(shooter,target){
+ const origin=new THREE.Vector3(shooter.x,EYE_HEIGHT+shooter.y,shooter.z),dir=facing(shooter);
+ let dist=Infinity;
+ for(const [height,r] of [[.85,.52],[1.24,.58],[1.65,.50],[2.22,.315]]){
+   const t=raySphere(origin,dir,{x:target.x,y:target.y+height,z:target.z},r);
+   if(t<dist)dist=t;
+ }
+ if(dist>62)return Infinity;
+ for(const c of obstacles)if(Number.isFinite(rayCoverDistance(origin,dir,c,dist)))return Infinity;
+ return dist;
+}
+function finishRound(winner,match){
+ if(transition||!started)return;
+ transition=performance.now();const mine=winner===me;
+ center.textContent=match?(mine?'ТЫ ПОБЕДИЛ!':'МАТЧ ПРОИГРАН'):(mine?'РАУНД ВЫИГРАН':'РАУНД ПРОИГРАН');
+ if(match){ended=true;document.exitPointerLock?.();$('endControls').style.display='flex';$('again').style.display=''}refreshHud();
+}
+function resolveDamage(dt){
+ if(!(role==='host'||bot)||ended||transition||performance.now()<roundLock)return;
+ for(let i=0;i<2;i++){
+   if(!p[i].fire)continue;
+   if(shotDistance(p[i],p[1-i])!==Infinity){
+     const damage=bot&&i===1?19:34;
+     hp[1-i]=Math.max(0,hp[1-i]-damage*dt);
+     if(i!==me)lastHitFx=performance.now();
+   }
+ }
+ if(hp[0]<=0||hp[1]<=0){
+   const winner=hp[0]<=0?1:0;
+   if(winner===me)myScore++;else oppScore++;
+   const match=myScore>=5||oppScore>=5;
+   finishRound(winner,match);
+   if(role==='host')safeSend({t:'sync',hp,score:[myScore,oppScore],round,winner,match});
+ }
+}
+function groundAt(x,z,oldY,vy){
+ let top=0;
+ if(vy<=0){for(const c of obstacles){
+   if(Math.abs(x-c.x)<c.w/2+PLAYER_RADIUS*.55&&Math.abs(z-c.z)<c.d/2+PLAYER_RADIUS*.55&&oldY>=c.h-.15)top=Math.max(top,c.h);
+ }}
+ return top;
+}
+function canMoveTo(q,x,z){
+ if(Math.abs(x)>HALF_X-.76||Math.abs(z)>HALF_Z-.76)return false;
+ for(const c of obstacles){
+   if(q.y>=c.h-.06)continue;
+   const closestX=THREE.MathUtils.clamp(x,c.x-c.w/2,c.x+c.w/2),closestZ=THREE.MathUtils.clamp(z,c.z-c.d/2,c.z+c.d/2);
+   if((x-closestX)**2+(z-closestZ)**2<PLAYER_RADIUS**2)return false;
+ }
+ return true;
+}
+function moveXZ(q,dx,dz){
+ // Separate X and Z sweeps give a predictable wall-slide rather than a sudden sideways launch.
+ const steps=Math.max(1,Math.ceil(Math.hypot(dx,dz)/.24));
+ for(let i=0;i<steps;i++){
+   if(canMoveTo(q,q.x+dx/steps,q.z))q.x+=dx/steps;
+   if(canMoveTo(q,q.x,q.z+dz/steps))q.z+=dz/steps;
+ }
+}
+function applyGravity(q,dt){
+ const previousY=q.y;
+ q.vy-=21.5*dt;
+ q.y+=q.vy*dt;
+ const floor=groundAt(q.x,q.z,previousY,q.vy);
+ if(q.y<=floor&&q.vy<0){q.y=floor;q.vy=0;}
+ q.padCooldown=Math.max(0,(q.padCooldown||0)-dt);
+ for(const pad of pads){
+   const d2=(pad.x-q.x)**2+(pad.z-q.z)**2;
+   if(d2<1.4*1.4&&q.y<=.75&&q.padCooldown===0){
+     q.y=Math.max(q.y,.2);q.vy=12.6;q.padCooldown=1.0;
+     if(q===p[me])padFxUntil=performance.now()+800;
+   }
+ }
+}
+function tickBot(dt,time){
+ const q=p[1],t=p[0],phase=time*.00056;
+ const tx=12.3*Math.cos(phase)+6.0*Math.sin(time*.0016),tz=12.0*Math.sin(phase*1.52);
+ const dx=THREE.MathUtils.clamp(tx-q.x,-8.4*dt,8.4*dt),dz=THREE.MathUtils.clamp(tz-q.z,-8.4*dt,8.4*dt);
+ moveXZ(q,dx,dz);
+ if(q.vy===0&&Math.sin(time*.0018)> .96)q.vy=8.2;
+ applyGravity(q,dt);
+ const aim=Math.atan2(-(t.x-q.x),-(t.z-q.z)),err=Math.atan2(Math.sin(aim-q.yaw),Math.cos(aim-q.yaw));
+ q.yaw+=THREE.MathUtils.clamp(err,-dt*.92,dt*.92);
+ q.pitch=THREE.MathUtils.clamp(Math.atan2((EYE_HEIGHT+q.y)-(1.22+t.y),Math.hypot(t.x-q.x,t.z-q.z)) * -1,-.65,.65);
+ q.fire=Math.sin(time*.00145)>-.23&&Math.abs(err)<.27;
+}
+function moveLocal(dt,time){
+ const q=p[me];let f=0,r=0;
+ if(locked&&!settingsOpen&&!ended&&!transition){
+   f=Number(!!keys.KeyW)-Number(!!keys.KeyS);r=Number(!!keys.KeyD)-Number(!!keys.KeyA);
+   const len=Math.hypot(f,r)||1;f/=len;r/=len;
+   const speed=(keys.ShiftLeft||keys.ShiftRight)?10.4:7.4;
+   const dx=(-Math.sin(q.yaw)*f+Math.cos(q.yaw)*r)*speed*dt;
+   const dz=(-Math.cos(q.yaw)*f-Math.sin(q.yaw)*r)*speed*dt;
+   moveXZ(q,dx,dz);
+   const floor=groundAt(q.x,q.z,q.y,q.vy);
+   if(keys.Space&&q.vy===0&&q.y<=floor+.005){q.vy=7.6;}
+ }
+ applyGravity(q,dt);
+ q.fire=mouseDown&&locked&&!settingsOpen&&!ended&&!transition&&time>=roundLock;
+ camera.position.set(q.x,EYE_HEIGHT+q.y,q.z);
+ camera.rotation.set(q.pitch,q.yaw,0,'YXZ');
+ const isMoving=Math.abs(f)+Math.abs(r)>0;
+ if(isMoving&&q.y<.02)bob+=dt*(keys.ShiftLeft?14:10);
+ else bob*=Math.max(0,1-dt*6);
+ visualRecoil=THREE.MathUtils.damp(visualRecoil,q.fire?.038:0,18,dt);
+ gun.scale.setScalar(settings.size);
+ gun.position.set(settings.side+Math.sin(bob)*.005,settings.height+Math.abs(Math.sin(bob))*.006,settings.depth);
+ gun.rotation.set(-visualRecoil,Math.sin(bob)*.005,-Math.sin(bob)*.008);
+ muzzleFlash.visible=q.fire&&Math.sin(time*.065)>0;
+}
+function sendPose(dt){
+ if(!conn?.open||!started)return;
+ sendAcc+=dt;syncAcc+=dt;
+ if(sendAcc>=1/30){sendAcc=0;const q=p[me];safeSend({t:'pose',x:q.x,z:q.z,y:q.y,yaw:q.yaw,pitch:q.pitch,fire:q.fire});}
+ if(role==='host'&&syncAcc>=1/18){syncAcc=0;safeSend({t:'sync',hp,score:[myScore,oppScore],round});}
+}
+function updateVisual(dt,time){
+ const q=p[op],mine=p[me];
+ // Smooth the remote avatar ONLY. Never interpolate or overwrite the local camera/player pose.
+ const factor=1-Math.exp(-dt*22);
+ enemyVisual.x=THREE.MathUtils.lerp(enemyVisual.x,q.x,factor);
+ enemyVisual.z=THREE.MathUtils.lerp(enemyVisual.z,q.z,factor);
+ enemyVisual.y=THREE.MathUtils.lerp(enemyVisual.y,q.y,factor);
+ const deltaYaw=Math.atan2(Math.sin(q.yaw-enemyVisual.yaw),Math.cos(q.yaw-enemyVisual.yaw));
+ enemyVisual.yaw+=deltaYaw*factor;
+ enemyMesh.position.set(enemyVisual.x,enemyVisual.y,enemyVisual.z);
+ enemyMesh.rotation.y=enemyVisual.yaw;enemyMesh.visible=started&&hp[op]>0;
+ if(mine.fire){
+   const origin=new THREE.Vector3(mine.x,EYE_HEIGHT+mine.y,mine.z),dir=facing(mine),distance=shotDistance(mine,q);
+   let length=Number.isFinite(distance)?distance:55;
+   for(const c of obstacles)length=Math.min(length,rayCoverDistance(origin,dir,c,length));
+   const end=origin.clone().addScaledVector(dir,length),diff=end.clone().sub(origin);
+   beam.position.copy(origin).addScaledVector(diff,.5);beam.quaternion.setFromUnitVectors(beamUp,diff.clone().normalize());
+   beam.scale.set(1,diff.length(),1);beam.visible=true;lastBeam=time+30;
+ }else if(time>lastBeam)beam.visible=false;
+ const hit=mine.fire&&shotDistance(mine,q)!==Infinity&&time>=roundLock;
+ $('cross').classList.toggle('hit',hit);$('dps').textContent=hit?'34 DPS':'';
+ $('damage').classList.toggle('pain',time-lastHitFx<180);
+ $('padTip').textContent=time<padFxUntil?'JUMP PAD × BOOST':'';
+ pads.forEach((pad,i)=>{pad.ring.material.opacity=.8+.2*Math.sin(time*.003+i);pad.ring.scale.setScalar(1+.07*Math.sin(time*.004+i));});
+}
+function animate(time){
+ requestAnimationFrame(animate);
+ const dt=Math.min(Math.max((time-last)/1000,0),.035);last=time;
+ if(started){
+   if(bot&&!ended&&!transition)tickBot(dt,time);
+   moveLocal(dt,time);
+   if(!ended){resolveDamage(dt);sendPose(dt)}
+   // Round transitions are driven by the HOST only (avoids double reset/teleport on guests).
+   if(transition&&!ended&&role!=='guest'&&time-transition>1700){
+     round++;resetPose();if(role==='host')safeSend({t:'sync',hp,score:[myScore,oppScore],round,reset:true});
+   }
+   if(!transition&&!settingsOpen)center.textContent=time<roundLock?'ГОТОВЬСЯ':'';
+   updateVisual(dt,time);refreshHud();
+ }
+ renderer.render(scene,camera);
+}
+
+// -------- In-game top-down Map Creator --------
+const ed=$('mapEditor'),edCanvas=$('editorCanvas'),ctx=edCanvas.getContext('2d');
+const PX=20, TOOL_NAMES={select:'Выделение',wall:'Стена',cover:'Укрытие',low:'Низкий блок',pillar:'Колонна',platform:'Платформа',pad:'Джамп-пад',spawn0:'Игрок 1',spawn1:'Игрок 2'};
+let editorOpen=false,tool='select',selected=null,drag=null,hover=null,history=[],redo=[],mapDirty=false;
+const snapCoord=n=>$('gridSnap').checked?Math.round(n*2)/2:Math.round(n*10)/10;
+const mapX=x=>(x+HALF_X)*PX,mapZ=z=>(z+HALF_Z)*PX;
+function pointFromEvent(e){const r=edCanvas.getBoundingClientRect();return {x:(e.clientX-r.left)/r.width*HALF_X*2-HALF_X,z:(e.clientY-r.top)/r.height*HALF_Z*2-HALF_Z}}
+function edMsg(t){$('editorStatus').textContent=t}
+function editorSnapshot(){return JSON.stringify(activeMap)}
+function saveUndo(){history.push(editorSnapshot());if(history.length>45)history.shift();redo.length=0;mapDirty=true}
+function updateEditorStats(){
+ $('mapStats').textContent=`${activeMap.objects.length}/120 объектов · ${activeMap.objects.filter(o=>o.type==='pad').length} джамп-падов · 2 спавна`;
+}
+function selectTool(t){tool=t;document.querySelectorAll('.tool').forEach(b=>b.classList.toggle('active',b.dataset.tool===t));edMsg(t==='select'?'Нажми на объект и перетащи его.':`Инструмент «${TOOL_NAMES[t]}»: нажми на карте.`)}
+function getSelected(){return selected?.kind==='object'?activeMap.objects.find(o=>o.id===selected.id):selected?.kind==='spawn'?activeMap.spawns[selected.index]:null}
+function updateProperties(){
+ const o=getSelected(),has=!!o; $('editorObjectProps').classList.toggle('hide',!has);
+ $('editorSelection').textContent=!has?'НИЧЕГО НЕ ВЫБРАНО':selected.kind==='spawn'?'ТОЧКА ПОЯВЛЕНИЯ '+(selected.index+1):TOOL_NAMES[o.type].toUpperCase();
+ if(has){$('propX').value=+o.x.toFixed(2);$('propZ').value=+o.z.toFixed(2)}
+ const solid=selected?.kind==='object';$('solidProps').classList.toggle('hide',!solid);
+ if(solid){for(const [key,id] of [['w','propW'],['d','propD'],['h','propH']])$(id).value=+o[key].toFixed(2);$('propColor').value=o.color}
+ updateEditorStats();
+}
+function fitObject(o){o.x=Math.max(-HALF_X+o.w/2+.7,Math.min(HALF_X-o.w/2-.7,o.x));o.z=Math.max(-HALF_Z+o.d/2+.7,Math.min(HALF_Z-o.d/2-.7,o.z))}
+function collidesSpawn(s){return activeMap.objects.some(o=>o.type!=='pad' &&
+ Math.abs(s.x-o.x)<o.w/2+PLAYER_RADIUS+.18&&Math.abs(s.z-o.z)<o.d/2+PLAYER_RADIUS+.18)}
+function validSpawns(){return !activeMap.spawns.some(collidesSpawn)}
+function saveCurrentMap(){
+ activeMap.name=($('mapName').value.trim()||'Моя арена').slice(0,36);
+ if(!validSpawns()){edMsg('⚠ Спавн внутри укрытия. Передвинь точку появления, чтобы сохранить карту.');return false}
+ try{localStorage.setItem('trackduel-map-v3',editorSnapshot());mapDirty=false;edMsg('✓ Карта сохранена в браузере. Можно играть или скачать JSON.');return true}
+ catch(e){edMsg('⚠ Браузер не разрешил сохранение. Скачай JSON, чтобы не потерять карту.');return false}
+}
+function openEditor(){if(started)return;editorOpen=true;ed.classList.remove('hide');$('mapName').value=activeMap.name;selected=null;history=[];redo=[];mapDirty=false;selectTool('select');updateProperties();drawEditor()}
+function closeEditor(){if(!saveCurrentMap())return false;editorOpen=false;ed.classList.add('hide');selected=null;rebuildArena();return true}
+$('openEditor').onclick=openEditor;$('mapDone').onclick=closeEditor;$('mapSave').onclick=saveCurrentMap;
+$('mapTest').onclick=()=>{if(closeEditor())begin('bot')};
+$('mapName').addEventListener('change',()=>{saveUndo();activeMap.name=($('mapName').value.trim()||'Моя арена').slice(0,36)});
+for(const b of document.querySelectorAll('.tool'))b.addEventListener('click',()=>selectTool(b.dataset.tool));
+function containsObject(o,x,z){return o.type==='pad'?Math.hypot(o.x-x,o.z-z)<1.8:Math.abs(x-o.x)<=o.w/2&&Math.abs(z-o.z)<=o.d/2}
+function pickAt(x,z){for(let i=0;i<2;i++)if(Math.hypot(activeMap.spawns[i].x-x,activeMap.spawns[i].z-z)<1.1)return {kind:'spawn',index:i};
+ for(let i=activeMap.objects.length-1;i>=0;i--)if(containsObject(activeMap.objects[i],x,z))return {kind:'object',id:activeMap.objects[i].id};return null}
+function assignPos(item,x,z){if(!item)return;item.x=snapCoord(x);item.z=snapCoord(z);
+ if(selected?.kind==='object')fitObject(item);
+ else{item.x=Math.max(-HALF_X+2,Math.min(HALF_X-2,item.x));item.z=Math.max(-HALF_Z+2,Math.min(HALF_Z-2,item.z))}}
+function placeObject(type,x,z){if(activeMap.objects.length>=120){edMsg('Максимум 120 объектов на карте.');return}
+ saveUndo();const [w,d,h]=MAP_DIMS[type];const o={id:allocateId(),type,x:snapCoord(x),z:snapCoord(z),w,d,h,color:'#3b556b'};fitObject(o);
+ activeMap.objects.push(o);selected={kind:'object',id:o.id};rebuildArena();updateProperties();edMsg(`${TOOL_NAMES[type]} добавлен. ПКМ — выделить, R — повернуть.`)}
+function editorDown(e){if(e.button!==0&&e.button!==2)return; e.preventDefault();const pos=pointFromEvent(e);hover=pos;
+ if(e.button===2||tool==='select'){
+  selected=pickAt(pos.x,pos.z);updateProperties();if(selected&&e.button===0){const o=getSelected();saveUndo();drag={start:pos,fromX:o.x,fromZ:o.z,moved:false};edCanvas.setPointerCapture?.(e.pointerId)}
+ }else if(tool.startsWith('spawn')){const index=Number(tool.slice(-1));saveUndo();selected={kind:'spawn',index};assignPos(activeMap.spawns[index],pos.x,pos.z);updateProperties();edMsg('Точка появления перемещена. Проверь, чтобы вокруг не было укрытий.')}
+ else placeObject(tool,pos.x,pos.z);
+}
+function editorMove(e){hover=pointFromEvent(e);if(!drag||!selected)return;const o=getSelected();if(!o)return;
+ const dx=hover.x-drag.start.x,dz=hover.z-drag.start.z;
+ if(Math.abs(dx)+Math.abs(dz)>.04)drag.moved=true;
+ assignPos(o,drag.fromX+dx,drag.fromZ+dz);updateProperties()}
+function editorUp(){if(drag?.moved){rebuildArena();edMsg('Объект перемещён. Изменения ещё не сохранены.')}drag=null}
+edCanvas.addEventListener('pointerdown',editorDown);edCanvas.addEventListener('pointermove',editorMove);edCanvas.addEventListener('pointerup',editorUp);edCanvas.addEventListener('pointercancel',editorUp);edCanvas.addEventListener('contextmenu',e=>e.preventDefault());
+function rotateSelected(){const o=getSelected();if(selected?.kind!=='object'||!o||o.type==='pad')return;saveUndo();[o.w,o.d]=[o.d,o.w];fitObject(o);rebuildArena();updateProperties();edMsg('Объект повёрнут на 90°')}
+function deleteSelected(){if(selected?.kind!=='object')return;saveUndo();activeMap.objects=activeMap.objects.filter(o=>o.id!==selected.id);selected=null;rebuildArena();updateProperties();edMsg('Объект удалён')}
+function copySelected(){const o=getSelected();if(selected?.kind!=='object'||activeMap.objects.length>=120)return;saveUndo();const v={...o,id:allocateId(),x:o.x+1.5,z:o.z+1.5};fitObject(v);activeMap.objects.push(v);selected={kind:'object',id:v.id};rebuildArena();updateProperties();edMsg('Копия добавлена')}
+$('rotateObject').onclick=rotateSelected;$('deleteObject').onclick=deleteSelected;$('copyObject').onclick=copySelected;
+for(const [key,id] of [['x','propX'],['z','propZ'],['w','propW'],['d','propD'],['h','propH'],['color','propColor']]){
+ $(id).addEventListener('change',()=>{const o=getSelected();if(!o)return;saveUndo();
+  if(key==='color')o.color=$(id).value;
+  else if(key==='x'||key==='z')o[key]=mapNum($(id).value,o[key],key==='x'?-25:-19,key==='x'?25:19);
+  else o[key]=mapNum($(id).value,o[key],key==='h'?.3:.5,key==='h'?8:25);
+  if(selected.kind==='object')fitObject(o);else assignPos(o,o.x,o.z);
+  rebuildArena();updateProperties();edMsg('Свойства обновлены. Нажми «Сохранить»')
+ })
+}
+function undoEditor(){if(!history.length)return;redo.push(editorSnapshot());loadIntoArena(JSON.parse(history.pop()));selected=null;$('mapName').value=activeMap.name;updateProperties();edMsg('Отменено')}
+function redoEditor(){if(!redo.length)return;history.push(editorSnapshot());loadIntoArena(JSON.parse(redo.pop()));selected=null;$('mapName').value=activeMap.name;updateProperties();edMsg('Повторено')}
+$('mapUndo').onclick=undoEditor;$('mapRedo').onclick=redoEditor;
+function setPreset(raw){saveUndo();loadIntoArena(raw);$('mapName').value=activeMap.name;selected=null;updateProperties();edMsg('Шаблон загружен. Сохрани карту или начни тест.')}
+$('presetClassic').onclick=()=>setPreset(DEFAULT_MAP);
+$('presetEmpty').onclick=()=>setPreset({version:1,name:'Пустая арена',spawns:[{x:-12,z:0},{x:12,z:0}],objects:[]});
+$('presetMirrored').onclick=()=>setPreset({version:1,name:'Симметричная арена',spawns:[{x:-19,z:0},{x:19,z:0}],objects:[
+ {type:'wall',x:0,z:-7,w:11,d:1.5,h:2.8},{type:'wall',x:0,z:7,w:11,d:1.5,h:2.8},
+ {type:'cover',x:-10,z:-10,w:3.5,d:3.5,h:1.5},{type:'cover',x:10,z:-10,w:3.5,d:3.5,h:1.5},
+ {type:'cover',x:-10,z:10,w:3.5,d:3.5,h:1.5},{type:'cover',x:10,z:10,w:3.5,d:3.5,h:1.5},
+ {type:'low',x:0,z:0,w:4,d:4,h:.9},{type:'pillar',x:-20,z:-14},{type:'pillar',x:20,z:14},
+ {type:'pad',x:-18,z:12},{type:'pad',x:18,z:-12} ]});
+$('mapExport').onclick=()=>{
+ activeMap.name=($('mapName').value.trim()||'Моя арена').slice(0,36);
+ const blob=new Blob([JSON.stringify(activeMap,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob);
+ const a=document.createElement('a');a.href=url;a.download='track-duel-map.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2500);
+ edMsg('JSON скачан. Отправляй файл друзьям или загружай его в редактор.')
+};
+$('mapImportButton').onclick=()=>$('mapImport').click();
+$('mapImport').addEventListener('change',async e=>{const file=e.target.files[0];if(!file)return;
+ try{if(file.size>100000)throw Error('Файл слишком большой (максимум 100 КБ).');const raw=JSON.parse(await file.text());saveUndo();loadIntoArena(raw);selected=null;$('mapName').value=activeMap.name;updateProperties();edMsg('Карта загружена из JSON. Нажми «Сохранить».')}
+ catch(err){edMsg('Ошибка импорта: '+err.message)}finally{e.target.value=''}
+});
+function drawEditor(){
+ if(!editorOpen)return;
+ ctx.fillStyle='#111f30';ctx.fillRect(0,0,1040,800);
+ for(let x=-HALF_X;x<=HALF_X;x+=2){ctx.beginPath();ctx.strokeStyle=x===0?'#506b7c':'#233b51';ctx.lineWidth=x===0?2:1;ctx.moveTo(mapX(x),0);ctx.lineTo(mapX(x),800);ctx.stroke()}
+ for(let z=-HALF_Z;z<=HALF_Z;z+=2){ctx.beginPath();ctx.strokeStyle=z===0?'#506b7c':'#233b51';ctx.lineWidth=z===0?2:1;ctx.moveTo(0,mapZ(z));ctx.lineTo(1040,mapZ(z));ctx.stroke()}
+ ctx.font='13px system-ui';ctx.textAlign='left';ctx.fillStyle='#58798d';for(let x=-20;x<=20;x+=10)ctx.fillText(String(x),mapX(x)+4,18);
+ for(let z=-10;z<=10;z+=10)ctx.fillText(String(z),4,mapZ(z)-4);
+ for(const o of activeMap.objects){
+  const active=selected?.kind==='object'&&selected.id===o.id,px=mapX(o.x),pz=mapZ(o.z);
+  ctx.save();if(o.type==='pad'){
+   ctx.beginPath();ctx.arc(px,pz,33,0,Math.PI*2);ctx.fillStyle='#08748e';ctx.fill();ctx.lineWidth=4;ctx.strokeStyle=active?'#fff099':'#61eafa';ctx.stroke();
+   ctx.beginPath();ctx.arc(px,pz,14,0,Math.PI*2);ctx.fillStyle='#7cf7ff';ctx.fill();
+  }else{
+   ctx.fillStyle=o.color;ctx.globalAlpha=.92;ctx.fillRect(px-o.w*PX/2,pz-o.d*PX/2,o.w*PX,o.d*PX);
+   ctx.globalAlpha=1;ctx.strokeStyle=active?'#ffe18c':o.type==='platform'?'#9d94f9':'#9dc0d1';ctx.lineWidth=active?5:2;ctx.strokeRect(px-o.w*PX/2,pz-o.d*PX/2,o.w*PX,o.d*PX);
+   ctx.fillStyle=active?'#fff1ba':'#cae1ed';ctx.font='bold 12px system-ui';ctx.textAlign='center';ctx.fillText(o.type==='wall'?'СТЕНА':o.type==='platform'?'ПЛАТФ.':o.type==='pillar'?'СТОЛБ':o.type==='low'?'НИЗ.':'УКР.',px,pz+4);
+  }ctx.restore();
+ }
+ for(let i=0;i<2;i++){const o=activeMap.spawns[i],x=mapX(o.x),z=mapZ(o.z),color=i===0?'#62eebd':'#ff7a93';
+  ctx.beginPath();ctx.arc(x,z,21,0,Math.PI*2);ctx.fillStyle='#0a2632';ctx.fill();ctx.strokeStyle=selected?.kind==='spawn'&&selected.index===i?'#fff29e':color;ctx.lineWidth=4;ctx.stroke();
+  ctx.fillStyle=color;ctx.font='bold 21px system-ui';ctx.textAlign='center';ctx.fillText(String(i+1),x,z+8);
+  ctx.fillStyle=color;ctx.beginPath();ctx.moveTo(x+(i===0?28:-28),z);ctx.lineTo(x+(i===0?38:-38),z-8);ctx.lineTo(x+(i===0?38:-38),z+8);ctx.closePath();ctx.fill();
+ }
+ if(hover&&tool!=='select'&& !tool.startsWith('spawn')){
+  ctx.globalAlpha=.4;ctx.strokeStyle='#9cffe9';ctx.setLineDash([6,6]);const [w,d]=MAP_DIMS[tool];ctx.strokeRect(mapX(snapCoord(hover.x))-w*PX/2,mapZ(snapCoord(hover.z))-d*PX/2,w*PX,d*PX);ctx.setLineDash([]);ctx.globalAlpha=1;
+ }
+}
+function drawEditorLoop(){requestAnimationFrame(drawEditorLoop);if(editorOpen)drawEditor()}
+requestAnimationFrame(drawEditorLoop);
+document.addEventListener('keydown',e=>{
+ if(!editorOpen)return;
+ if(e.target.matches('input,select,textarea'))return;
+ if(e.ctrlKey&&e.code==='KeyZ'){e.preventDefault();undoEditor();return}
+ if(e.ctrlKey&&e.code==='KeyY'){e.preventDefault();redoEditor();return}
+ if(e.ctrlKey&&e.code==='KeyD'){e.preventDefault();copySelected();return}
+ if(e.code==='Delete'||e.code==='Backspace'){e.preventDefault();deleteSelected();return}
+ if(e.code==='KeyR'){e.preventDefault();rotateSelected();return}
+ if(/^Digit[1-9]$/.test(e.code)){selectTool(['select','wall','cover','low','pillar','platform','pad','spawn0','spawn1'][Number(e.code.slice(-1))-1]);e.preventDefault()}
+});
+
+requestAnimationFrame(animate);
+window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+document.addEventListener('keydown',e=>{
+ if(editorOpen)return;
+ if(e.code==='KeyV'&&!e.repeat&&started&&!ended){toggleSettings();e.preventDefault();return}
+ if(settingsOpen)return;
+ keys[e.code]=true;
+ if(['Space','ArrowUp','ArrowDown'].includes(e.code))e.preventDefault();
+});
+document.addEventListener('keyup',e=>{keys[e.code]=false});
+document.addEventListener('mousemove',e=>{
+ if(!locked||!started||ended||settingsOpen)return;
+ // Pointer-lock events can occasionally contain huge OS/browser jumps; discard those spikes.
+ if(!Number.isFinite(e.movementX)||!Number.isFinite(e.movementY))return;
+ if(Math.abs(e.movementX)>125||Math.abs(e.movementY)>125)return;
+ const q=p[me],s=settings.sens/100;
+ q.yaw-=e.movementX*s;
+ q.pitch=THREE.MathUtils.clamp(q.pitch-e.movementY*s,-1.3,1.3);
+});
+document.addEventListener('mousedown',e=>{if(e.button===0&&locked&&!settingsOpen&&!editorOpen)mouseDown=true});
+document.addEventListener('mouseup',e=>{if(e.button===0)mouseDown=false});
+renderer.domElement.addEventListener('click',tryLock);
+renderer.domElement.addEventListener('contextmenu',e=>e.preventDefault());
+$('unlock').onclick=tryLock;
+document.addEventListener('pointerlockchange',()=>{locked=document.pointerLockElement===renderer.domElement;mouseDown=false;refreshUnlock()});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){mouseDown=false;for(const k in keys)keys[k]=false}});
+window.addEventListener('blur',()=>{mouseDown=false;for(const k in keys)keys[k]=false});
+window.addEventListener('beforeunload',cleanup);
+</script>
+</body>
+</html>
