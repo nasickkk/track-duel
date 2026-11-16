@@ -198,7 +198,7 @@ button,input{font:inherit}button{cursor:pointer}canvas{display:block}#game{posit
          <div id="solidProps">
           <label class="editorField">Ширина <input type="number" id="propW" min="0.5" max="40" step="0.5"></label>
           <label class="editorField">Длина <input type="number" id="propD" min="0.5" max="40" step="0.5"></label>
-          <label class="editorField">Высота <input type="number" id="propH" min="0.3" max="12" step="0.1"></label>
+          <label class="editorField">Высота <input type="number" id="propH" min="0.3" max="24" step="0.1"></label>
           <label class="editorField">Цвет <input type="color" id="propColor" value="#3b556b"></label>
           <div class="edButtons"><button class="btn" id="rotateObject">↻ ПОВЕРНУТЬ</button><button class="btn" id="copyObject">⧉ КОПИЯ</button></div>
           <button class="btn editorDanger" id="deleteObject" style="width:100%">УДАЛИТЬ ОБЪЕКТ</button>
@@ -283,7 +283,7 @@ function normalizeMap(raw){
  const inObjs=raw.objects.slice(0,120);
  for(let i=0;i<inObjs.length;i++){
   const v=inObjs[i];if(!v||!MAP_TYPES.includes(v.type))continue;
-  const def=MAP_DIMS[v.type],w=Math.min(width-1.4,mapNum(v.w,def[0],.5,40)),d=Math.min(depth-1.4,mapNum(v.d,def[1],.5,40)),h=mapNum(v.h,def[2],.3,12);
+  const def=MAP_DIMS[v.type],w=Math.min(width-1.4,mapNum(v.w,def[0],.5,40)),d=Math.min(depth-1.4,mapNum(v.d,def[1],.5,40)),h=mapNum(v.h,def[2],.3,24);
   const x=mapNum(v.x,0,-hx+w/2+.6,hx-w/2-.6);
   const z=mapNum(v.z,0,-hz+d/2+.6,hz-d/2-.6);
   const color=typeof v.color==='string'&&/^#[0-9a-f]{6}$/i.test(v.color)?v.color:'#3b556b';
@@ -1239,7 +1239,7 @@ function editor3DMove(e){
  if(editorDrag3d?.type==='resize'&&selected){
   const o=getSelected(),a=editorDrag3d.axis,initial=editorDrag3d.initial,spawnSelected=selected.kind==='spawn';
   const delta=a==='w'?(pos.x-editorDrag3d.start.x)*2:a==='d'?(pos.z-editorDrag3d.start.z)*2:(editorDrag3d.startY-e.clientY)*orbitRadius*.009;
-  const maxSize=spawnSelected?24:a==='w'?Math.min(40,HALF_X*2-1.4):a==='d'?Math.min(40,HALF_Z*2-1.4):12;
+  const maxSize=spawnSelected?24:a==='w'?Math.min(40,HALF_X*2-1.4):a==='d'?Math.min(40,HALF_Z*2-1.4):24;
   const v=Math.round(THREE.MathUtils.clamp(initial[a]+delta,spawnSelected?0:a==='h'?.3:.5,maxSize)*10)/10;
   const key=spawnSelected?'y':a;
   if(Math.abs(v-o[key])>.02){o[key]=v;if(!spawnSelected){fitObject(o);rebuildArena()}updateProperties();editorDrag3d.moved=true;}
@@ -1384,7 +1384,7 @@ for(const [key,id] of [['x','propX'],['z','propZ'],['w','propW'],['d','propD'],[
  $(id).addEventListener('change',()=>{const o=getSelected();if(!o)return;saveUndo();
   if(key==='color')o.color=$(id).value;
   else if(key==='x'||key==='z')o[key]=mapNum($(id).value,o[key],key==='x'?-HALF_X+1:-HALF_Z+1,key==='x'?HALF_X-1:HALF_Z-1);
-  else o[key]=mapNum($(id).value,o[key],key==='h'?.3:.5,key==='h'?12:key==='w'?Math.min(40,HALF_X*2-1.4):Math.min(40,HALF_Z*2-1.4));
+  else o[key]=mapNum($(id).value,o[key],key==='h'?.3:.5,key==='h'?24:key==='w'?Math.min(40,HALF_X*2-1.4):Math.min(40,HALF_Z*2-1.4));
   if(selected.kind==='object')fitObject(o);else assignPos(o,o.x,o.z);
   rebuildArena();updateProperties();edMsg('Свойства обновлены. Нажми «Сохранить»')
  })
