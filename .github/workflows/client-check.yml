@@ -16,3 +16,4 @@ jobs:
           node-version: '22'
       - run: node scripts/check-client.mjs
       - run: node scripts/test-client-config.mjs
+      - run: node scripts/test-combat-logic.mjs
