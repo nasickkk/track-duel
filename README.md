@@ -1,10 +1,20 @@
-# TRACK DUEL 5.2
+# TRACK DUEL 5.3
 
 A lightweight browser-based FPS tracking duel and 3D map workshop, built with Three.js and a choice of experimental PeerJS peer-to-peer networking or a separately deployed WebSocket relay server.
 
 **Play (GitHub Pages):** https://nasickkk.github.io/track-duel/
 
 > **Prototype:** Supports 1v1 (two people using a room code) and a local moving bot. No dedicated authoritative multiplayer server, persistent accounts, anti-cheat, match history, or reliable latency compensation yet. **3-player free-for-all and 2v2 are planned, not playable.** GitHub Pages hosts static files only.
+
+## 5.3 — Radmin VPN LAN (no Render or Cloudflare)
+
+- Run `server/start-radmin.bat` on the host's Windows computer and enter the **host's own Radmin VPN IPv4**.
+- Open `http://RADMIN_HOST_IP:10000/play` on **both** browsers (same virtual Radmin network). The local relay serves the browser game and WebSocket on one address.
+- The game automatically selects the same-origin WebSocket server; the host creates a room and the guest joins with the code.
+- Host Node.js binds only to the supplied Radmin interface address; do not forward the port to the open internet.
+- On HTTP the clipboard API may be unavailable, so invite copying falls back to a manual dialog.
+- Full Russian guide: [Radmin VPN setup](docs/RADMIN_LAN_RU.md).
+- The LAN connection is still a relay and not a dedicated 128-tick authoritative combat server.
 
 ## 5.2 — RTT, high-frequency movement and visible sniper tracers
 
