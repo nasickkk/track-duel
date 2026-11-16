@@ -304,7 +304,7 @@ const WEAPONS={
  tap:{label:'ТАПАЛКА',description:'12 ТЕЛО · 18 ГОЛОВА · 0.23 СЕК',damage:12,cooldown:230},
  sniper:{label:'АВИК',description:'70 ТЕЛО · 100 ГОЛОВА · 1.55 СЕК',damage:70,cooldown:1550}
 };
-let activeWeapon='track', nextFireAt=0,lastTrackSound=0,fireFlashUntil=0,shotTrailUntil=0,aiming=false,soundEnabled=true, soundCtx=null,weaponToastUntil=0,remoteFlashUntil=0;
+let activeWeapon='track', nextFireAt=0,lastTrackSound=0,fireFlashUntil=0,shotTrailUntil=0,aiming=false,soundEnabled=true, soundCtx=null,weaponToastUntil=0,remoteFlashUntil=0,remoteShotWeapon='tap';
 const DEFAULT_LOBBY={mode:'1v1',wallBounce:false,bounceForce:10,jumpPads:true,weapons:{track:true,tap:true,sniper:true}};
 function normalizeLobby(raw){const c=raw&&typeof raw==='object'?raw:{};
  const weapons={track:c.weapons?.track!==false,tap:c.weapons?.tap!==false,sniper:c.weapons?.sniper!==false};
@@ -718,9 +718,9 @@ function handleData(d){
    if(lastHp>hp[me]+.3){lastHitFx=performance.now()}lastHp=hp[me];refreshHud();
  }
  if(d.t==='shot'&&role==='host'&&started&&!ended&&d.weapon!=='track'&&WEAPONS[d.weapon]&&lobby.weapons[d.weapon]){
-    if(d.weapon===p[op].weapon&&performance.now()-lastEnemyPose<1300){acceptDiscreteShot(op,d.weapon);remoteFlashUntil=performance.now()+95;}
+    if(d.weapon===p[op].weapon&&performance.now()-lastEnemyPose<1300){acceptDiscreteShot(op,d.weapon);remoteShotWeapon=d.weapon;remoteFlashUntil=performance.now()+(d.weapon==='sniper'?440:200);}
  }
- if(d.t==='shotfx'&&role==='guest'&&started){remoteFlashUntil=performance.now()+95;}
+ if(d.t==='shotfx'&&role==='guest'&&started){remoteShotWeapon=d.weapon==='sniper'?'sniper':'tap';remoteFlashUntil=performance.now()+(remoteShotWeapon==='sniper'?440:200);}
  if(d.t==='rematch'){otherRematch=true;if(myRematch&&role==='host')startRematch()}
  if(d.t==='start'&&!started&&role==='none'){
     if(d.map){try{loadIntoArena(d.map)}catch(e){alertMsg('Карта повреждена: '+e.message);return}}
@@ -785,7 +785,7 @@ function tryFireDiscrete(){
  if(!started||ended||transition||!locked||settingsOpen||editorOpen||performance.now()<roundLock)return;
  const w=activeWeapon;if(w==='track'||!lobby.weapons[w])return;
  const now=performance.now(),config=WEAPONS[w];if(now<nextFireAt)return;
- nextFireAt=now+config.cooldown;fireFlashUntil=now+105;shotTrailUntil=now+175;
+ nextFireAt=now+config.cooldown;fireFlashUntil=now+105;shotTrailUntil=now+(w==='sniper'?440:200);
  playShotSound(w);visualRecoil=Math.max(visualRecoil,w==='sniper'?.13:.055);
  if(role==='guest'){
    const q=p[me];safeSend({t:'pose',x:q.x,z:q.z,y:q.y,yaw:q.yaw,pitch:q.pitch,fire:false,weapon:w});
@@ -943,22 +943,29 @@ function updateVisual(dt,time){
  enemyMesh.rotation.y=enemyVisual.yaw;enemyMesh.visible=started&&hp[op]>0;
  const beamLive=mine.fire||time<shotTrailUntil;
  if(beamLive){
-   const origin=new THREE.Vector3(mine.x,EYE_HEIGHT+mine.y,mine.z),dir=facing(mine),distance=shotDistance(mine,q);
-   let length=Number.isFinite(distance)?distance:155;
-   for(const c of obstacles)length=Math.min(length,rayCoverDistance(origin,dir,c,length));
-   const end=origin.clone().addScaledVector(dir,length),diff=end.clone().sub(origin);
-   beam.position.copy(origin).addScaledVector(diff,.5);beam.quaternion.setFromUnitVectors(beamUp,diff.clone().normalize());
-   beam.scale.set(1,Math.max(.01,diff.length()),1);beam.visible=true;
-   beam.material.opacity=mine.fire?.115:Math.max(0,.17*(shotTrailUntil-time)/175);
+  const eye=new THREE.Vector3(mine.x,EYE_HEIGHT+mine.y,mine.z),dir=facing(mine),distance=shotDistance(mine,q);
+  let length=Number.isFinite(distance)?distance:155;
+  for(const c of obstacles)length=Math.min(length,rayCoverDistance(eye,dir,c,length));
+  const end=eye.clone().addScaledVector(dir,length);
+  const sniperTrail=!mine.fire&&activeWeapon==='sniper'&&time<shotTrailUntil;
+  // An eye-centered line looks like a single pixel. Draw the cosmetic tracer from an offset muzzle.
+  const origin=sniperTrail?eye.clone().addScaledVector(dir,.6).add(new THREE.Vector3(Math.cos(mine.yaw)*.24,-.20,-Math.sin(mine.yaw)*.24)):eye;
+  const diff=end.clone().sub(origin);
+  beam.position.copy(origin).addScaledVector(diff,.5);beam.quaternion.setFromUnitVectors(beamUp,diff.clone().normalize());
+  beam.scale.set(sniperTrail?3.3:1,Math.max(.01,diff.length()),sniperTrail?3.3:1);beam.visible=true;
+  beam.material.opacity=mine.fire?.115:sniperTrail?Math.max(0,.56*(shotTrailUntil-time)/440):Math.max(0,.2*(shotTrailUntil-time)/200);
  }else beam.visible=false;
  if(q.fire||time<remoteFlashUntil){
-   const origin=new THREE.Vector3(q.x,EYE_HEIGHT+q.y,q.z),dir=facing(q);
-   let length=155;for(const c of obstacles)length=Math.min(length,rayCoverDistance(origin,dir,c,length));
-   const diff=dir.clone().multiplyScalar(length);
-   remoteBeam.position.copy(origin).addScaledVector(diff,.5);
-   remoteBeam.quaternion.setFromUnitVectors(beamUp,dir);
-   remoteBeam.scale.set(1,length,1);remoteBeam.visible=true;
-   remoteBeam.material.opacity=q.fire?.08:Math.max(0,.11*(remoteFlashUntil-time)/95);
+  const eye=new THREE.Vector3(q.x,EYE_HEIGHT+q.y,q.z),dir=facing(q);
+  let length=155;for(const c of obstacles)length=Math.min(length,rayCoverDistance(eye,dir,c,length));
+  const end=eye.clone().addScaledVector(dir,length);
+  const sniperTrail=!q.fire&&remoteShotWeapon==='sniper'&&time<remoteFlashUntil;
+  const origin=sniperTrail?eye.clone().addScaledVector(dir,.6).add(new THREE.Vector3(Math.cos(q.yaw)*.24,-.20,-Math.sin(q.yaw)*.24)):eye;
+  const diff=end.clone().sub(origin);
+  remoteBeam.position.copy(origin).addScaledVector(diff,.5);
+  remoteBeam.quaternion.setFromUnitVectors(beamUp,diff.clone().normalize());
+  remoteBeam.scale.set(sniperTrail?3.3:1,Math.max(.01,diff.length()),sniperTrail?3.3:1);remoteBeam.visible=true;
+  remoteBeam.material.opacity=q.fire?.08:sniperTrail?Math.max(0,.5*(remoteFlashUntil-time)/440):Math.max(0,.18*(remoteFlashUntil-time)/200);
  }else remoteBeam.visible=false;
  const hit=mine.fire&&shotDistance(mine,q)!==Infinity&&time>=roundLock;
  $('cross').classList.toggle('hit',hit);$('dps').textContent=hit?'34 DPS':'';
@@ -968,11 +975,18 @@ function updateVisual(dt,time){
 }
 function animate(time){
  requestAnimationFrame(animate);
- const dt=Math.min(Math.max((time-last)/1000,0),.035);last=time;
+ const dt=Math.min(Math.max((time-last)/1000,0),.06);last=time;
  if(started){
-   if(bot&&!ended&&!transition)tickBot(dt,time);
-   moveLocal(dt,time);
-   if(!ended){resolveDamage(dt);sendPose(dt)}
+   // Client physics / damage at 128 fixed steps per second. Not an authoritative server tickrate.
+   const step=1/SIM_HZ;fixedAcc+=dt;let steps=0;
+   while(fixedAcc>=step&&steps<8){
+     if(bot&&!ended&&!transition)tickBot(step,time);
+     moveLocal(step,time);
+     if(!ended)resolveDamage(step);
+     fixedAcc-=step;steps++;
+   }
+   if(steps===8&&fixedAcc>step)fixedAcc=step;
+   if(!ended){sendPose(dt);probeNetwork(time)}
    // Round transitions are driven by the HOST only (avoids double reset/teleport on guests).
    if(transition&&!ended&&role!=='guest'&&time-transition>1700){
      round++;resetPose();if(role==='host')safeSend({t:'sync',hp,score:[myScore,oppScore],round,reset:true});
