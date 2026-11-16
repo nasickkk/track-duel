@@ -68,3 +68,36 @@ test('WebSocket relay: create, join, forward, disconnect',async t=>{
   guest.close();
   assert.equal((await h.next()).t,'peer-left');
 });
+
+test('Radmin LAN: serves browser client and accepts same-origin WebSocket',async t=>{
+ const lanPort=19877;
+ const ip='127.0.0.1';
+ const lanOrigin='http://'+ip+':'+lanPort;
+ const server=spawn(process.execPath,['index.mjs'],{
+  cwd:process.cwd(),
+  env:{...process.env,PORT:String(lanPort),LAN_MODE:'1',BIND_HOST:ip,ALLOWED_ORIGIN:lanOrigin,NODE_ENV:'production'},
+  stdio:'pipe'
+ });
+ let logs='';server.stderr.on('data',b=>logs+=b.toString());
+ t.after(()=>server.kill());
+ for(let i=0;i<60;i++){
+  try{const r=await fetch(lanOrigin+'/health');if(r.ok)break}catch{}
+  await delay(100);
+ }
+ const page=await fetch(lanOrigin+'/play');
+ assert.equal(page.status,200,logs);
+ assert.match(page.headers.get('content-type'),/text\/html/);
+ const html=await page.text();
+ assert.match(html,/TRACK DUEL 5\.3/);
+ assert.match(html,/window\.trackDuelReady=true/);
+ const ws=await new Promise((resolve,reject)=>{
+  const conn=new WebSocket('ws://'+ip+':'+lanPort+'/ws',{origin:lanOrigin});
+  conn.once('open',()=>resolve(conn));conn.once('error',reject);
+ });
+ t.after(()=>ws.close());
+ const i=inbox(ws);
+ i.send({t:'create'});
+ const reply=await i.next();
+ assert.equal(reply.t,'created');
+ assert.match(reply.code,/^[A-HJ-NP-Z2-9]{6}$/);
+});
